@@ -17,11 +17,13 @@ export type TokenOption = {
   symbol: string;
   name: string;
   currentPrice: number;
+  cashBucket: number;
+  taxReserved: number;
   pendingSellRungs: RungOption[];
   pendingRebuyRungs: RungOption[];
 };
 
-type TxType = "BUY" | "SELL" | "DEPOSIT";
+type TxType = "BUY" | "SELL" | "DEPOSIT" | "WITHDRAW";
 
 function toDatetimeLocal(date: Date): string {
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -78,6 +80,7 @@ export default function LogTransactionForm({
             <option value="BUY">BUY</option>
             <option value="SELL">SELL</option>
             <option value="DEPOSIT">DEPOSIT</option>
+            <option value="WITHDRAW">WITHDRAW</option>
           </select>
         </label>
       </div>
@@ -95,7 +98,9 @@ function TransactionFields({ token, type }: { token: TokenOption; type: TxType }
   const [fundedBy, setFundedBy] = useState<"CASH_BUCKET" | "EXTERNAL">("CASH_BUCKET");
   const [quantity, setQuantity] = useState("");
   const [pricePerUnit, setPricePerUnit] = useState(String(token.currentPrice));
-  const [usdAmount, setUsdAmount] = useState("");
+  const [usdAmount, setUsdAmount] = useState(
+    type === "WITHDRAW" && token.taxReserved > 0 ? String(token.taxReserved.toFixed(2)) : ""
+  );
   const [selectedSellRungs, setSelectedSellRungs] = useState<Set<string>>(
     () => new Set(token.pendingSellRungs.filter((r) => r.isEligible).map((r) => r.id))
   );
@@ -131,7 +136,7 @@ function TransactionFields({ token, type }: { token: TokenOption; type: TxType }
       occurredAt: new Date(occurredAt).toISOString(),
     };
 
-    if (type === "DEPOSIT") {
+    if (type === "DEPOSIT" || type === "WITHDRAW") {
       payload.usdAmount = Number(usdAmount);
     } else {
       payload.quantity = Number(quantity);
@@ -194,7 +199,7 @@ function TransactionFields({ token, type }: { token: TokenOption; type: TxType }
           />
         </label>
 
-        {type === "DEPOSIT" ? (
+        {type === "DEPOSIT" || type === "WITHDRAW" ? (
           <label className="block text-sm">
             <span className="text-neutral-700">Amount (USD)</span>
             <input
@@ -205,6 +210,12 @@ function TransactionFields({ token, type }: { token: TokenOption; type: TxType }
               required
               className="mt-1 block w-full rounded-md border border-neutral-300 px-2 py-1.5"
             />
+            {type === "WITHDRAW" && (
+              <span className="text-xs text-neutral-400">
+                Cash Bucket: {formatUsd(token.cashBucket)}
+                {token.taxReserved > 0 && ` · Tax Reserved: ${formatUsd(token.taxReserved)}`}
+              </span>
+            )}
           </label>
         ) : (
           <>
@@ -251,7 +262,8 @@ function TransactionFields({ token, type }: { token: TokenOption; type: TxType }
       {type === "SELL" && token.pendingSellRungs.length > 0 && (
         <RungCheckboxes
           title="Sell rungs this transaction satisfies"
-          portionSuffix="of holdings"
+          sign="+"
+          portionSuffix="of base holdings"
           rungs={token.pendingSellRungs}
           selected={selectedSellRungs}
           onToggle={(id) => toggle(selectedSellRungs, id, setSelectedSellRungs)}
@@ -261,6 +273,7 @@ function TransactionFields({ token, type }: { token: TokenOption; type: TxType }
       {type === "BUY" && token.pendingRebuyRungs.length > 0 && (
         <RungCheckboxes
           title="Rebuy rungs this transaction satisfies"
+          sign="-"
           portionSuffix="of contributions"
           rungs={token.pendingRebuyRungs}
           selected={selectedRebuyRungs}
@@ -288,12 +301,14 @@ function RungCheckboxes({
   selected,
   onToggle,
   portionSuffix,
+  sign,
 }: {
   title: string;
   rungs: RungOption[];
   selected: Set<string>;
   onToggle: (id: string) => void;
   portionSuffix: string;
+  sign: "+" | "-";
 }) {
   return (
     <div className="rounded-md border border-neutral-200 p-3">
@@ -308,7 +323,8 @@ function RungCheckboxes({
               className="rounded border-neutral-300"
             />
             <span className={r.isEligible ? "font-medium text-neutral-900" : "text-neutral-500"}>
-              -{r.pct}% (trigger {formatPrice(r.triggerPrice)}) — {r.portionPct}% {portionSuffix}
+              {sign}
+              {r.pct}% (trigger {formatPrice(r.triggerPrice)}) — {r.portionPct}% {portionSuffix}
               {r.isEligible ? " · eligible" : ""}
             </span>
           </li>

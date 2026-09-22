@@ -26,6 +26,7 @@ export default async function DashboardPage() {
             <thead className="bg-neutral-50 text-left text-xs font-medium uppercase tracking-wide text-neutral-500">
               <tr>
                 <th className="px-4 py-3">Token</th>
+                <th className="px-4 py-3">Category</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3 text-right">Current Price</th>
                 <th className="px-4 py-3 text-right">Recent High</th>
@@ -34,6 +35,7 @@ export default async function DashboardPage() {
                 <th className="px-4 py-3 text-right">Holdings Value</th>
                 <th className="px-4 py-3 text-right">Cash Bucket</th>
                 <th className="px-4 py-3 text-right">Contributions</th>
+                <th className="px-4 py-3 text-right">Tax Reserved</th>
                 <th className="px-4 py-3">Last Checked</th>
               </tr>
             </thead>
@@ -49,6 +51,7 @@ export default async function DashboardPage() {
                     </Link>
                     <div className="text-xs text-neutral-500">{token.name}</div>
                   </td>
+                  <td className="px-4 py-3 text-neutral-500">{token.category ?? "—"}</td>
                   <td className="px-4 py-3">
                     <StatusBadge status={token.ladder.status} />
                   </td>
@@ -72,6 +75,9 @@ export default async function DashboardPage() {
                   </td>
                   <td className="px-4 py-3 text-right tabular-nums text-neutral-500">
                     {formatUsd(token.ladder.cashBucketContributions)}
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums text-neutral-500">
+                    {formatUsd(token.ladder.taxReserved)}
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 text-neutral-500">
                     {formatDate(token.lastPriceUpdate)}

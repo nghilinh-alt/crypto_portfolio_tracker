@@ -20,6 +20,8 @@ export default async function TransactionsPage({
     symbol: t.symbol,
     name: t.name,
     currentPrice: t.currentPrice,
+    cashBucket: t.ladder.cashBucket,
+    taxReserved: t.ladder.taxReserved,
     pendingSellRungs: t.ladder.sellRungs
       .filter((r) => r.status === "PENDING")
       .map((r) => ({
@@ -47,7 +49,9 @@ export default async function TransactionsPage({
   });
 
   const initialType =
-    type === "BUY" || type === "SELL" || type === "DEPOSIT" ? type : undefined;
+    type === "BUY" || type === "SELL" || type === "DEPOSIT" || type === "WITHDRAW"
+      ? type
+      : undefined;
 
   return (
     <div className="space-y-8">

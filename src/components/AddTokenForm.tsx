@@ -18,13 +18,19 @@ export default function AddTokenForm() {
     // event finishes dispatching, which happens before our `await` resolves.
     const formEl = e.currentTarget;
     const form = new FormData(formEl);
+    const priceNow = form.get("currentPrice") ? Number(form.get("currentPrice")) : undefined;
     const payload = {
       symbol: String(form.get("symbol") ?? ""),
       name: String(form.get("name") ?? ""),
+      category: form.get("category") ? String(form.get("category")) : undefined,
       coingeckoId: form.get("coingeckoId") ? String(form.get("coingeckoId")) : undefined,
       bybitSymbol: form.get("bybitSymbol") ? String(form.get("bybitSymbol")) : undefined,
-      recentHigh: form.get("recentHigh") ? Number(form.get("recentHigh")) : undefined,
-      currentPrice: form.get("currentPrice") ? Number(form.get("currentPrice")) : undefined,
+      currentPrice: priceNow,
+      // Both anchors default to today's price if left blank — recentHigh
+      // ratchets up from there (rebuy), basePrice stays fixed (sell).
+      recentHigh: form.get("recentHigh") ? Number(form.get("recentHigh")) : priceNow,
+      basePrice: form.get("basePrice") ? Number(form.get("basePrice")) : priceNow,
+      baseHoldings: form.get("baseHoldings") ? Number(form.get("baseHoldings")) : undefined,
     };
 
     try {
@@ -67,6 +73,20 @@ export default function AddTokenForm() {
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Field label="Symbol" name="symbol" required placeholder="BTC" />
         <Field label="Name" name="name" required placeholder="Bitcoin" />
+        <label className="block text-sm">
+          <span className="text-neutral-700">Category</span>
+          <select
+            name="category"
+            defaultValue=""
+            className="mt-1 block w-full rounded-md border border-neutral-300 px-2 py-1.5 text-sm focus:border-neutral-500 focus:outline-none"
+          >
+            <option value="">— none —</option>
+            <option value="Core">Core</option>
+            <option value="Growth">Growth</option>
+            <option value="Harvest">Harvest</option>
+          </select>
+          <span className="text-xs text-neutral-400">picks the sell-ladder template</span>
+        </label>
         <Field
           label="CoinGecko ID"
           name="coingeckoId"
@@ -74,12 +94,39 @@ export default function AddTokenForm() {
           hint="used for price fetch"
         />
         <Field label="Bybit Symbol" name="bybitSymbol" placeholder="BTCUSDT" hint="fallback" />
-        <Field label="Recent High (USD)" name="recentHigh" type="number" step="any" />
-        <Field label="Current Price (USD)" name="currentPrice" type="number" step="any" />
+        <Field
+          label="Current Price (USD)"
+          name="currentPrice"
+          type="number"
+          step="any"
+          hint="also fills recent high / base price below"
+        />
+        <Field
+          label="Recent High (USD)"
+          name="recentHigh"
+          type="number"
+          step="any"
+          hint="drives rebuy ladder"
+        />
+        <Field
+          label="Base Price (USD)"
+          name="basePrice"
+          type="number"
+          step="any"
+          hint="fixed, drives sell ladder"
+        />
+        <Field
+          label="Base Holdings"
+          name="baseHoldings"
+          type="number"
+          step="any"
+          hint="sell % sized against this"
+        />
       </div>
       <p className="text-xs text-neutral-500">
-        Default sell &amp; rebuy ladders (-15/-25/-35/-45% off recent high) are created
-        automatically — edit them from the token page after creating it.
+        Picking a category applies its sell-ladder template automatically. The rebuy ladder
+        defaults to -15/-25/-35/-45% off recent high, deploying 10/20/30/40% of Cash Bucket
+        Contributions. Edit any of it from the token page after creating it.
       </p>
       {error && <p className="text-sm text-red-600">{error}</p>}
       <div className="flex gap-2">

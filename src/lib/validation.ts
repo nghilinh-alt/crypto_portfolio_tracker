@@ -3,9 +3,12 @@ import { z } from "zod";
 export const createTokenSchema = z.object({
   symbol: z.string().trim().min(1).max(20).toUpperCase(),
   name: z.string().trim().min(1).max(80),
+  category: z.string().trim().min(1).max(40).optional().nullable(),
   coingeckoId: z.string().trim().min(1).max(80).optional().nullable(),
   bybitSymbol: z.string().trim().min(1).max(20).optional().nullable(),
   recentHigh: z.number().nonnegative().optional().default(0),
+  basePrice: z.number().nonnegative().optional().default(0),
+  baseHoldings: z.number().nonnegative().optional().default(0),
   currentPrice: z.number().nonnegative().optional().default(0),
   sellRungs: z
     .array(
@@ -27,9 +30,12 @@ export const createTokenSchema = z.object({
 
 export const updateTokenSchema = z.object({
   name: z.string().trim().min(1).max(80).optional(),
+  category: z.string().trim().min(1).max(40).optional().nullable(),
   coingeckoId: z.string().trim().min(1).max(80).optional().nullable(),
   bybitSymbol: z.string().trim().min(1).max(20).optional().nullable(),
   recentHigh: z.number().nonnegative().optional(),
+  basePrice: z.number().nonnegative().optional(),
+  baseHoldings: z.number().nonnegative().optional(),
 });
 
 export const createSellRungSchema = z.object({
@@ -57,7 +63,7 @@ export const updateRebuyRungSchema = z.object({
 export const createTransactionSchema = z
   .object({
     tokenId: z.string().min(1),
-    type: z.enum(["BUY", "SELL", "DEPOSIT"]),
+    type: z.enum(["BUY", "SELL", "DEPOSIT", "WITHDRAW"]),
     fundedBy: z.enum(["CASH_BUCKET", "EXTERNAL"]).optional().nullable(),
     quantity: z.number().positive().optional(),
     pricePerUnit: z.number().positive().optional(),
@@ -68,25 +74,25 @@ export const createTransactionSchema = z
     occurredAt: z.string().datetime().optional(),
   })
   .superRefine((data, ctx) => {
-    if (data.type === "DEPOSIT") {
+    if (data.type === "DEPOSIT" || data.type === "WITHDRAW") {
       if (data.usdAmount === undefined) {
         ctx.addIssue({
           code: "custom",
-          message: "usdAmount is required for DEPOSIT",
+          message: `usdAmount is required for ${data.type}`,
           path: ["usdAmount"],
         });
       }
       if (data.quantity !== undefined || data.pricePerUnit !== undefined) {
         ctx.addIssue({
           code: "custom",
-          message: "DEPOSIT does not take quantity/pricePerUnit",
+          message: `${data.type} does not take quantity/pricePerUnit`,
           path: ["quantity"],
         });
       }
       if (data.sellRungIds?.length || data.rebuyRungIds?.length) {
         ctx.addIssue({
           code: "custom",
-          message: "DEPOSIT cannot satisfy rungs",
+          message: `${data.type} cannot satisfy rungs`,
           path: ["sellRungIds"],
         });
       }

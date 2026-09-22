@@ -43,7 +43,12 @@ export default async function TokenDetailPage({
         <StatCard
           label="Recent High"
           value={formatPrice(ladder.recentHigh)}
-          sub={`${formatPct(ladder.drawdownPct)} off`}
+          sub={`${formatPct(ladder.drawdownPct)} off · drives rebuy`}
+        />
+        <StatCard
+          label="Base Price"
+          value={formatPrice(ladder.basePrice)}
+          sub={`+${formatPct(ladder.gainFromBasePct)} · drives sell`}
         />
         <StatCard
           label="Holdings"
@@ -51,14 +56,21 @@ export default async function TokenDetailPage({
           sub={formatUsd(ladder.holdingsValueUsd)}
         />
         <StatCard
-          label="Last Checked"
-          value={formatDate(token.lastPriceUpdate)}
+          label="Base Holdings"
+          value={formatQty(ladder.baseHoldings)}
+          sub="sell % sized against this"
         />
+        <StatCard label="Last Checked" value={formatDate(token.lastPriceUpdate)} />
         <StatCard label="Cash Bucket" value={formatUsd(ladder.cashBucket)} sub="net, spendable" />
         <StatCard
           label="Cash Bucket Contributions"
           value={formatUsd(ladder.cashBucketContributions)}
-          sub="gross, lifetime"
+          sub="gross, lifetime, after tax"
+        />
+        <StatCard
+          label="Tax Reserved (25%)"
+          value={formatUsd(ladder.taxReserved)}
+          sub="withheld from realized profit"
         />
         <StatCard
           label="Suggested Rebuy Deploy"
@@ -70,14 +82,20 @@ export default async function TokenDetailPage({
       <EditTokenForm
         tokenId={token.id}
         name={token.name}
+        category={token.category}
         coingeckoId={token.coingeckoId}
         bybitSymbol={token.bybitSymbol}
         recentHigh={token.recentHigh}
+        basePrice={token.basePrice}
+        baseHoldings={token.baseHoldings}
       />
 
       <section>
         <h2 className="text-sm font-semibold text-neutral-900">
-          Sell Ladder <span className="font-normal text-neutral-500">— measured from recent high</span>
+          Sell Ladder{" "}
+          <span className="font-normal text-neutral-500">
+            — % gain above base price, sized against base holdings
+          </span>
         </h2>
         <div className="mt-2 rounded-lg border border-neutral-200 bg-white p-4">
           <RungEditor
@@ -104,7 +122,7 @@ export default async function TokenDetailPage({
         <h2 className="text-sm font-semibold text-neutral-900">
           Rebuy Ladder{" "}
           <span className="font-normal text-neutral-500">
-            — deploy % of Cash Bucket Contributions
+            — % drop below recent high, deploying % of Cash Bucket Contributions
           </span>
         </h2>
         <div className="mt-2 rounded-lg border border-neutral-200 bg-white p-4">

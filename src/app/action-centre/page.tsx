@@ -36,8 +36,9 @@ export default async function ActionCentrePage() {
                   <span className="ml-2 text-sm text-neutral-500">{token.name}</span>
                 </div>
                 <div className="text-sm text-neutral-500">
-                  {formatPrice(token.ladder.currentPrice)} · {formatPct(token.ladder.drawdownPct)}{" "}
-                  off high
+                  {formatPrice(token.ladder.currentPrice)} · +
+                  {formatPct(token.ladder.gainFromBasePct)} from base ·{" "}
+                  {formatPct(token.ladder.drawdownPct)} off high
                 </div>
               </div>
 
@@ -52,8 +53,8 @@ export default async function ActionCentrePage() {
                       .map((r) => (
                         <li key={r.id} className="flex justify-between">
                           <span>
-                            -{r.pct}% ({formatPrice(r.triggerPrice)}) — sell {r.sellPortionPct}%
-                            of holdings
+                            +{r.pct}% ({formatPrice(r.triggerPrice)}) — sell {r.sellPortionPct}%
+                            of base holdings
                           </span>
                           <span className="tabular-nums">≈ {formatQty(r.suggestedSellQty)}</span>
                         </li>
@@ -118,8 +119,9 @@ export default async function ActionCentrePage() {
                   {token.symbol}
                 </Link>
                 <span className="text-neutral-500">
-                  {formatPrice(token.ladder.currentPrice)} · {formatPct(token.ladder.drawdownPct)}{" "}
-                  off high
+                  {formatPrice(token.ladder.currentPrice)} · +
+                  {formatPct(token.ladder.gainFromBasePct)} from base ·{" "}
+                  {formatPct(token.ladder.drawdownPct)} off high
                 </span>
               </li>
             ))}

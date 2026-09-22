@@ -25,16 +25,18 @@ export type RebuyRungLike = {
 export type TokenStatus = "SELL" | "BUY" | "WATCH" | "HOLD";
 
 export type SellRungView = SellRungLike & {
-  /** recentHigh * (1 - pct/100) — always derived, never stored (§2). */
+  /** basePrice * (1 + pct/100) — a fixed gain target, derived, never stored. */
   triggerPrice: number;
-  /** Pending and currentPrice <= triggerPrice — ready to act on. */
+  /** Pending and currentPrice >= triggerPrice — ready to act on. */
   isEligible: boolean;
-  /** % of current holdings this rung suggests selling, at today's price. */
+  /** % of baseHoldings (fixed) this rung suggests selling — not current holdings. */
   suggestedSellQty: number;
 };
 
 export type RebuyRungView = RebuyRungLike & {
+  /** recentHigh * (1 - pct/100) — derived, never stored (§2). */
   triggerPrice: number;
+  /** Pending and currentPrice <= triggerPrice — ready to act on. */
   isEligible: boolean;
   /** deployPct% of Cash Bucket Contributions — this rung's own share, uncapped. */
   rawDeployUsd: number;
@@ -43,9 +45,13 @@ export type RebuyRungView = RebuyRungLike & {
 export type TokenLadderView = {
   currentPrice: number;
   recentHigh: number;
+  basePrice: number;
+  baseHoldings: number;
   drawdownPct: number; // % below recentHigh, 0 if at/above high
+  gainFromBasePct: number; // % above basePrice, 0 if at/below it
   cashBucket: number;
   cashBucketContributions: number;
+  taxReserved: number;
   holdings: number;
   holdingsValueUsd: number;
   sellRungs: SellRungView[];
@@ -55,12 +61,12 @@ export type TokenLadderView = {
   status: TokenStatus;
 };
 
-export function triggerPrice(recentHigh: number, pct: number): number {
-  return recentHigh * (1 - pct / 100);
+export function sellTriggerPrice(basePrice: number, pct: number): number {
+  return basePrice * (1 + pct / 100);
 }
 
-function isPastTrigger(currentPrice: number, triggerPx: number): boolean {
-  return currentPrice <= triggerPx;
+export function rebuyTriggerPrice(recentHigh: number, pct: number): number {
+  return recentHigh * (1 - pct / 100);
 }
 
 function withinWatchBand(currentPrice: number, triggerPx: number): boolean {
@@ -78,38 +84,41 @@ function nearestPending<T extends { pct: number; status: RungStatus }>(
 }
 
 export function computeTokenLadderView(
-  token: { currentPrice: number; recentHigh: number },
+  token: { currentPrice: number; recentHigh: number; basePrice: number; baseHoldings: number },
   sellRungs: SellRungLike[],
   rebuyRungs: RebuyRungLike[],
   transactions: CashBucketTx[]
 ): TokenLadderView {
-  const { currentPrice, recentHigh } = token;
-  const { cashBucket, cashBucketContributions, holdings } =
+  const { currentPrice, recentHigh, basePrice, baseHoldings } = token;
+  const { cashBucket, cashBucketContributions, holdings, taxReserved } =
     computeCashBucketFigures(transactions);
 
   const drawdownPct =
     recentHigh > 0 ? Math.max(0, ((recentHigh - currentPrice) / recentHigh) * 100) : 0;
+  const gainFromBasePct =
+    basePrice > 0 ? Math.max(0, ((currentPrice - basePrice) / basePrice) * 100) : 0;
 
-  // No anchor yet (token has never been priced) — nothing can be "eligible"
-  // until a real recentHigh exists, otherwise 0 <= 0 would trigger every rung.
-  const hasAnchor = recentHigh > 0;
+  // No anchor yet — nothing can be "eligible" until a real basePrice /
+  // recentHigh exists, otherwise a 0-vs-0 comparison would trigger every rung.
+  const sellHasAnchor = basePrice > 0;
+  const rebuyHasAnchor = recentHigh > 0;
 
   const sellRungViews: SellRungView[] = sellRungs.map((r) => {
-    const px = triggerPrice(recentHigh, r.pct);
+    const px = sellTriggerPrice(basePrice, r.pct);
     return {
       ...r,
       triggerPrice: px,
-      isEligible: hasAnchor && r.status === "PENDING" && isPastTrigger(currentPrice, px),
-      suggestedSellQty: (r.sellPortionPct / 100) * holdings,
+      isEligible: sellHasAnchor && r.status === "PENDING" && currentPrice >= px,
+      suggestedSellQty: (r.sellPortionPct / 100) * baseHoldings,
     };
   });
 
   const rebuyRungViews: RebuyRungView[] = rebuyRungs.map((r) => {
-    const px = triggerPrice(recentHigh, r.pct);
+    const px = rebuyTriggerPrice(recentHigh, r.pct);
     return {
       ...r,
       triggerPrice: px,
-      isEligible: hasAnchor && r.status === "PENDING" && isPastTrigger(currentPrice, px),
+      isEligible: rebuyHasAnchor && r.status === "PENDING" && currentPrice <= px,
       rawDeployUsd: (r.deployPct / 100) * cashBucketContributions,
     };
   });
@@ -127,11 +136,13 @@ export function computeTokenLadderView(
   const sellWatch =
     !!nearestSell &&
     !hasSellAlert &&
-    withinWatchBand(currentPrice, triggerPrice(recentHigh, nearestSell.pct));
+    sellHasAnchor &&
+    withinWatchBand(currentPrice, sellTriggerPrice(basePrice, nearestSell.pct));
   const rebuyWatch =
     !!nearestRebuy &&
     !hasBuyAlert &&
-    withinWatchBand(currentPrice, triggerPrice(recentHigh, nearestRebuy.pct));
+    rebuyHasAnchor &&
+    withinWatchBand(currentPrice, rebuyTriggerPrice(recentHigh, nearestRebuy.pct));
 
   let status: TokenStatus = "HOLD";
   if (hasSellAlert) status = "SELL";
@@ -141,9 +152,13 @@ export function computeTokenLadderView(
   return {
     currentPrice,
     recentHigh,
+    basePrice,
+    baseHoldings,
     drawdownPct,
+    gainFromBasePct,
     cashBucket,
     cashBucketContributions,
+    taxReserved,
     holdings,
     holdingsValueUsd: holdings * currentPrice,
     sellRungs: sellRungViews,
@@ -153,16 +168,50 @@ export function computeTokenLadderView(
   };
 }
 
-export const DEFAULT_SELL_RUNGS = [
-  { order: 1, pct: 15, sellPortionPct: 10 },
-  { order: 2, pct: 25, sellPortionPct: 20 },
-  { order: 3, pct: 35, sellPortionPct: 30 },
-  { order: 4, pct: 45, sellPortionPct: 40 },
-];
-
 export const DEFAULT_REBUY_RUNGS = [
   { order: 1, pct: 15, deployPct: 10 },
   { order: 2, pct: 25, deployPct: 20 },
   { order: 3, pct: 35, deployPct: 30 },
   { order: 4, pct: 45, deployPct: 40 },
 ];
+
+/** Sell-ladder templates by risk category — gain % above basePrice → % of baseHoldings to sell. */
+export const SELL_LADDER_TEMPLATES = {
+  Core: [
+    { pct: 25, sellPortionPct: 2 },
+    { pct: 50, sellPortionPct: 3 },
+    { pct: 100, sellPortionPct: 5 },
+    { pct: 150, sellPortionPct: 5 },
+    { pct: 200, sellPortionPct: 7.5 },
+    { pct: 300, sellPortionPct: 7.5 },
+    { pct: 500, sellPortionPct: 10 },
+    { pct: 700, sellPortionPct: 5 },
+    { pct: 1000, sellPortionPct: 5 },
+  ],
+  Growth: [
+    { pct: 25, sellPortionPct: 3 },
+    { pct: 50, sellPortionPct: 3 },
+    { pct: 100, sellPortionPct: 5 },
+    { pct: 150, sellPortionPct: 5 },
+    { pct: 200, sellPortionPct: 10 },
+    { pct: 300, sellPortionPct: 10 },
+    { pct: 500, sellPortionPct: 10 },
+    { pct: 700, sellPortionPct: 10 },
+    { pct: 1000, sellPortionPct: 10 },
+  ],
+  Harvest: [
+    { pct: 25, sellPortionPct: 5 },
+    { pct: 50, sellPortionPct: 5 },
+    { pct: 100, sellPortionPct: 10 },
+    { pct: 150, sellPortionPct: 10 },
+    { pct: 200, sellPortionPct: 10 },
+    { pct: 300, sellPortionPct: 10 },
+    { pct: 500, sellPortionPct: 15 },
+    { pct: 700, sellPortionPct: 15 },
+  ],
+} satisfies Record<string, Array<{ pct: number; sellPortionPct: number }>>;
+
+/** Target retention (%) if every rung in a template fires — purely informational. */
+export function templateRetentionPct(rungs: Array<{ sellPortionPct: number }>): number {
+  return 100 - rungs.reduce((sum, r) => sum + r.sellPortionPct, 0);
+}

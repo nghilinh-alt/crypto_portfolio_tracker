@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createTransactionSchema } from "@/lib/validation";
 import { zodErrorResponse, notFound } from "@/lib/apiHelpers";
+import { computeCashBucketFigures } from "@/lib/cashBucket";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -59,14 +60,26 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unable to determine usdAmount" }, { status: 400 });
   }
 
+  if (input.type === "WITHDRAW") {
+    const existingTx = await prisma.transaction.findMany({ where: { tokenId: input.tokenId } });
+    const { cashBucket } = computeCashBucketFigures(existingTx);
+    if (usdAmount > cashBucket) {
+      return NextResponse.json(
+        { error: `Withdrawal of ${usdAmount} exceeds the current Cash Bucket (${cashBucket.toFixed(2)})` },
+        { status: 400 }
+      );
+    }
+  }
+
   const transaction = await prisma.$transaction(async (tx) => {
     const created = await tx.transaction.create({
       data: {
         tokenId: input.tokenId,
         type: input.type,
         fundedBy: input.type === "BUY" ? input.fundedBy : null,
-        quantity: input.type === "DEPOSIT" ? null : input.quantity,
-        pricePerUnit: input.type === "DEPOSIT" ? null : input.pricePerUnit,
+        quantity: input.type === "DEPOSIT" || input.type === "WITHDRAW" ? null : input.quantity,
+        pricePerUnit:
+          input.type === "DEPOSIT" || input.type === "WITHDRAW" ? null : input.pricePerUnit,
         usdAmount,
         sellRungIds: sellRungIds.length > 0 ? JSON.stringify(sellRungIds) : null,
         rebuyRungIds: rebuyRungIds.length > 0 ? JSON.stringify(rebuyRungIds) : null,

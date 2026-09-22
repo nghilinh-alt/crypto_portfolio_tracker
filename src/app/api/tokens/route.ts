@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getAllTokensWithLadder } from "@/lib/data";
 import { createTokenSchema } from "@/lib/validation";
 import { zodErrorResponse } from "@/lib/apiHelpers";
-import { DEFAULT_SELL_RUNGS, DEFAULT_REBUY_RUNGS } from "@/lib/ladder";
+import { DEFAULT_REBUY_RUNGS, SELL_LADDER_TEMPLATES } from "@/lib/ladder";
 
 export async function GET() {
   const tokens = await getAllTokensWithLadder();
@@ -24,10 +24,14 @@ export async function POST(request: Request) {
     );
   }
 
-  const sellRungs = (input.sellRungs ?? DEFAULT_SELL_RUNGS).map((r, i) => ({
+  const templateRungs =
+    input.category && input.category in SELL_LADDER_TEMPLATES
+      ? SELL_LADDER_TEMPLATES[input.category as keyof typeof SELL_LADDER_TEMPLATES]
+      : [];
+  const sellRungs = (input.sellRungs ?? templateRungs).map((r, i) => ({
     order: i + 1,
     pct: r.pct,
-    sellPortionPct: "sellPortionPct" in r ? r.sellPortionPct : 0,
+    sellPortionPct: r.sellPortionPct,
   }));
   const rebuyRungs = (input.rebuyRungs ?? DEFAULT_REBUY_RUNGS).map((r, i) => ({
     order: i + 1,
@@ -39,9 +43,12 @@ export async function POST(request: Request) {
     data: {
       symbol: input.symbol,
       name: input.name,
+      category: input.category ?? null,
       coingeckoId: input.coingeckoId ?? null,
       bybitSymbol: input.bybitSymbol ?? null,
       recentHigh: input.recentHigh,
+      basePrice: input.basePrice,
+      baseHoldings: input.baseHoldings,
       currentPrice: input.currentPrice,
       sellRungs: { create: sellRungs },
       rebuyRungs: { create: rebuyRungs },

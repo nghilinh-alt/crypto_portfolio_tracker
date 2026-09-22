@@ -31,13 +31,16 @@ export default function RungEditor({
   const router = useRouter();
   const rungBase = kind === "sell" ? "/api/sell-rungs" : "/api/rebuy-rungs";
   const portionField = kind === "sell" ? "sellPortionPct" : "deployPct";
+  // Sell rungs are a % GAIN above basePrice; rebuy rungs are a % DROP below recentHigh.
+  const pctLabel = kind === "sell" ? "Gain %" : "Drop %";
+  const pctSign = kind === "sell" ? "+" : "-";
 
   return (
     <div className="overflow-x-auto">
       <table className="min-w-full divide-y divide-neutral-200 text-sm">
         <thead className="text-left text-xs font-medium uppercase tracking-wide text-neutral-500">
           <tr>
-            <th className="py-2 pr-3">Drop %</th>
+            <th className="py-2 pr-3">{pctLabel}</th>
             <th className="py-2 pr-3">Trigger Price</th>
             <th className="py-2 pr-3">{portionLabel}</th>
             <th className="py-2 pr-3">{rungs[0]?.extraLabel ?? ""}</th>
@@ -52,6 +55,7 @@ export default function RungEditor({
               rung={rung}
               apiUrl={`${rungBase}/${rung.id}`}
               portionField={portionField}
+              pctSign={pctSign}
               onChanged={() => router.refresh()}
             />
           ))}
@@ -61,6 +65,7 @@ export default function RungEditor({
         tokenId={tokenId}
         kind={kind}
         portionLabel={portionLabel}
+        pctLabel={pctLabel}
         onAdded={() => router.refresh()}
       />
     </div>
@@ -71,11 +76,13 @@ function RungRowEditor({
   rung,
   apiUrl,
   portionField,
+  pctSign,
   onChanged,
 }: {
   rung: RungRow;
   apiUrl: string;
   portionField: string;
+  pctSign: string;
   onChanged: () => void;
 }) {
   const [pct, setPct] = useState(String(rung.pct));
@@ -128,6 +135,7 @@ function RungRowEditor({
     <tr className={rung.isEligible ? "bg-amber-50" : undefined}>
       <td className="py-2 pr-3">
         <div className="flex items-center gap-1">
+          <span className="text-neutral-400">{pctSign}</span>
           <input
             type="number"
             step="any"
@@ -196,11 +204,13 @@ function AddRungForm({
   tokenId,
   kind,
   portionLabel,
+  pctLabel,
   onAdded,
 }: {
   tokenId: string;
   kind: "sell" | "rebuy";
   portionLabel: string;
+  pctLabel: string;
   onAdded: () => void;
 }) {
   const [pct, setPct] = useState("");
@@ -232,7 +242,7 @@ function AddRungForm({
       <input
         type="number"
         step="any"
-        placeholder="Drop %"
+        placeholder={pctLabel}
         value={pct}
         onChange={(e) => setPct(e.target.value)}
         className="w-20 rounded border border-neutral-300 px-1.5 py-1"

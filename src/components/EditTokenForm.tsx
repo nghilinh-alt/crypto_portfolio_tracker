@@ -6,23 +6,32 @@ import { useRouter } from "next/navigation";
 export default function EditTokenForm({
   tokenId,
   name,
+  category,
   coingeckoId,
   bybitSymbol,
   recentHigh,
+  basePrice,
+  baseHoldings,
 }: {
   tokenId: string;
   name: string;
+  category: string | null;
   coingeckoId: string | null;
   bybitSymbol: string | null;
   recentHigh: number;
+  basePrice: number;
+  baseHoldings: number;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [values, setValues] = useState({
     name,
+    category: category ?? "",
     coingeckoId: coingeckoId ?? "",
     bybitSymbol: bybitSymbol ?? "",
     recentHigh: String(recentHigh),
+    basePrice: String(basePrice),
+    baseHoldings: String(baseHoldings),
   });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -36,9 +45,12 @@ export default function EditTokenForm({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: values.name,
+          category: values.category || null,
           coingeckoId: values.coingeckoId || null,
           bybitSymbol: values.bybitSymbol || null,
           recentHigh: Number(values.recentHigh),
+          basePrice: Number(values.basePrice),
+          baseHoldings: Number(values.baseHoldings),
         }),
       });
       const body = await res.json();
@@ -76,6 +88,15 @@ export default function EditTokenForm({
           />
         </label>
         <label className="block">
+          <span className="text-xs text-neutral-500">Category</span>
+          <input
+            value={values.category}
+            onChange={(e) => setValues((v) => ({ ...v, category: e.target.value }))}
+            placeholder="Core / Growth / Harvest"
+            className="mt-1 block w-full rounded border border-neutral-300 px-2 py-1"
+          />
+        </label>
+        <label className="block">
           <span className="text-xs text-neutral-500">CoinGecko ID</span>
           <input
             value={values.coingeckoId}
@@ -92,12 +113,32 @@ export default function EditTokenForm({
           />
         </label>
         <label className="block">
-          <span className="text-xs text-neutral-500">Recent High (only ratchets up)</span>
+          <span className="text-xs text-neutral-500">Recent High (only ratchets up, drives rebuy)</span>
           <input
             type="number"
             step="any"
             value={values.recentHigh}
             onChange={(e) => setValues((v) => ({ ...v, recentHigh: e.target.value }))}
+            className="mt-1 block w-full rounded border border-neutral-300 px-2 py-1"
+          />
+        </label>
+        <label className="block">
+          <span className="text-xs text-neutral-500">Base Price (fixed, drives sell)</span>
+          <input
+            type="number"
+            step="any"
+            value={values.basePrice}
+            onChange={(e) => setValues((v) => ({ ...v, basePrice: e.target.value }))}
+            className="mt-1 block w-full rounded border border-neutral-300 px-2 py-1"
+          />
+        </label>
+        <label className="block">
+          <span className="text-xs text-neutral-500">Base Holdings (sell % sized against this)</span>
+          <input
+            type="number"
+            step="any"
+            value={values.baseHoldings}
+            onChange={(e) => setValues((v) => ({ ...v, baseHoldings: e.target.value }))}
             className="mt-1 block w-full rounded border border-neutral-300 px-2 py-1"
           />
         </label>
