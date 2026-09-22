@@ -49,6 +49,7 @@ model Token {
   bybitSymbol     String? // e.g. "BTCUSDT" — used by the Bybit fallback provider
   recentHigh      Float     @default(0)
   basePrice       Float     @default(0)
+  basePriceSetAt  DateTime  @default(now()) // when basePrice was last (re)set — the "since" date for portfolio growth
   baseHoldings    Float     @default(0)
   currentPrice    Float     @default(0)
   lastPriceUpdate DateTime?

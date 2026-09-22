@@ -24,9 +24,14 @@ export async function PATCH(request: Request, { params }: Ctx) {
 
   // recentHigh only ever ratchets up (§2) — a manual edit can raise it,
   // never lower it below what's already recorded.
-  const data = { ...parsed.data };
+  const data: typeof parsed.data & { basePriceSetAt?: Date } = { ...parsed.data };
   if (data.recentHigh !== undefined) {
     data.recentHigh = Math.max(data.recentHigh, existing.recentHigh);
+  }
+  // Track when basePrice actually changes, so the portfolio "gain since"
+  // display stays accurate even after resetting a token for a new cycle.
+  if (data.basePrice !== undefined && data.basePrice !== existing.basePrice) {
+    data.basePriceSetAt = new Date();
   }
 
   const token = await prisma.token.update({ where: { id }, data });
