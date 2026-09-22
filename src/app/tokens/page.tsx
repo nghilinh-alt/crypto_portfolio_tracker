@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getAllTokensWithLadder } from "@/lib/data";
 import AddTokenForm from "@/components/AddTokenForm";
 import DeleteButton from "@/components/DeleteButton";
+import TokenAvatar from "@/components/TokenAvatar";
 import { formatPrice } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -37,9 +38,11 @@ export default async function TokensPage() {
               <div className="relative z-10 flex flex-col h-full">
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary to-indigo-600 text-xs font-bold text-white shadow-inner ring-1 ring-white/20">
-                      {token.symbol.slice(0, 2)}
-                    </div>
+                    <TokenAvatar
+                      symbol={token.symbol}
+                      iconUrl={token.iconUrl}
+                      className="h-10 w-10 text-xs shadow-inner"
+                    />
                     <div>
                       <Link href={`/tokens/${token.id}`} className="text-lg font-display font-medium text-foreground hover:text-primary transition-colors">
                         {token.symbol}

@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import { DEFAULT_REBUY_RUNGS, SELL_LADDER_TEMPLATES } from "../src/lib/ladder";
 import { getPrices } from "../src/lib/priceProvider";
+import { fetchTokenIconUrl } from "../src/lib/tokenIcon";
 
 const prisma = new PrismaClient();
 
@@ -53,6 +54,7 @@ async function main() {
     }
 
     const sellTemplate = SELL_LADDER_TEMPLATES[t.category];
+    const iconUrl = await fetchTokenIconUrl(t.coingeckoId);
 
     const token = await prisma.token.create({
       data: {
@@ -61,6 +63,7 @@ async function main() {
         category: t.category,
         coingeckoId: t.coingeckoId,
         bybitSymbol: t.bybitSymbol,
+        iconUrl,
         // Both anchors start at today's price: recentHigh will ratchet up
         // from here (drives the rebuy ladder), basePrice stays fixed here
         // (drives the sell ladder's % gain thresholds).

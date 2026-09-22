@@ -1,6 +1,8 @@
 import Link from "next/link";
-import { getAllTokensWithLadder } from "@/lib/data";
+import { getAllTokensWithLadder, getPortfolioHistory } from "@/lib/data";
 import StatusBadge from "@/components/StatusBadge";
+import PortfolioProgress from "@/components/PortfolioProgress";
+import TokenAvatar from "@/components/TokenAvatar";
 import { formatUsd, formatPrice, formatPct, formatQty } from "@/lib/format";
 
 // This reads live DB state on every request — never statically prerender it.
@@ -21,6 +23,13 @@ function getTokenColor(symbol: string) {
 
 export default async function DashboardPage() {
   const tokens = await getAllTokensWithLadder();
+  const history = await getPortfolioHistory();
+
+  const snapshotPoints = history.map((s) => ({
+    capturedAt: s.capturedAt.toISOString(),
+    totalValueUsd: s.totalValueUsd,
+    perToken: Object.fromEntries(s.tokenSnapshots.map((ts) => [ts.tokenId, ts.holdingsValueUsd])),
+  }));
 
   const totals = tokens.reduce(
     (acc, t) => {
@@ -97,10 +106,15 @@ export default async function DashboardPage() {
         <EmptyState />
       ) : (
         <div className="space-y-8">
+          <PortfolioProgress
+            snapshots={snapshotPoints}
+            tokens={tokens.map((t) => ({ id: t.id, symbol: t.symbol, name: t.name }))}
+          />
+
           <div className="space-y-6">
             <div className="flex items-center justify-between pb-2 border-b border-border/50">
               <h2 className="text-2xl font-display font-medium flex items-center gap-3">
-                <span className="text-sm font-mono text-muted-foreground">01</span>
+                <span className="text-sm font-mono text-muted-foreground">02</span>
                 Active Positions
               </h2>
               <Link href="/tokens" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
@@ -129,9 +143,12 @@ export default async function DashboardPage() {
                       <div className="p-4 xl:grid xl:grid-cols-[minmax(300px,2fr)_minmax(145px,1fr)_minmax(145px,1fr)_minmax(130px,.9fr)] xl:items-center xl:gap-8 xl:px-6 xl:py-4">
 
                         <div className="flex items-center gap-4">
-                          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br ${gradient} text-xs font-bold text-white shadow-inner ring-1 ring-white/20`}>
-                            {token.symbol.slice(0, 2)}
-                          </div>
+                          <TokenAvatar
+                            symbol={token.symbol}
+                            iconUrl={token.iconUrl}
+                            gradient={gradient}
+                            className="h-10 w-10 text-xs shadow-inner"
+                          />
                           <div className="min-w-0 flex-1">
                             <div className="font-medium flex items-center gap-2 text-foreground">
                               {token.symbol}
@@ -158,8 +175,8 @@ export default async function DashboardPage() {
                           <StackedPositionMetric
                             label="Recent high"
                             primary={formatPrice(token.ladder.recentHigh)}
-                            secondary={`${formatPct(drawdown)} drawdown`}
-                            secondaryTone={drawdown < 0 ? "negative" : "positive"}
+                            secondary={`${formatPct(-drawdown)} drawdown`}
+                            secondaryTone={drawdown > 0 ? "negative" : "neutral"}
                           />
                           <div className="col-span-3 mt-1 flex items-end justify-between border-t border-border/40 pt-3 text-right xl:col-span-1 xl:mt-0 xl:block xl:border-0 xl:pt-0">
                             <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground xl:hidden">Value</span>
@@ -182,7 +199,7 @@ export default async function DashboardPage() {
           <div className="space-y-6">
             <div className="flex items-center justify-between pb-2 border-b border-border/50">
               <h2 className="text-2xl font-display font-medium flex items-center gap-3">
-                <span className="text-sm font-mono text-muted-foreground">02</span>
+                <span className="text-sm font-mono text-muted-foreground">03</span>
                 Attention Required
               </h2>
               <div className="flex items-center justify-center rounded-full bg-secondary text-secondary-foreground text-xs font-mono px-2 py-0.5">

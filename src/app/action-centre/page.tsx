@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getAllTokensWithLadder } from "@/lib/data";
 import { formatUsd, formatPrice, formatPct, formatQty } from "@/lib/format";
 import StatusBadge from "@/components/StatusBadge";
+import TokenAvatar from "@/components/TokenAvatar";
 
 export const dynamic = "force-dynamic";
 
@@ -68,9 +69,7 @@ export default async function ActionCentrePage() {
               <div key={token.id} className="overflow-hidden rounded-2xl border border-border bg-card transition-colors">
                 <div className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center">
                   <div className="flex min-w-0 flex-1 items-center gap-4">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary to-indigo-600 text-xs font-bold text-white ring-1 ring-white/20">
-                      {token.symbol.slice(0, 2)}
-                    </div>
+                    <TokenAvatar symbol={token.symbol} iconUrl={token.iconUrl} className="h-11 w-11 text-xs" />
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <Link href={`/tokens/${token.id}`} className="text-xl font-display font-medium text-foreground hover:underline">
@@ -81,7 +80,7 @@ export default async function ActionCentrePage() {
                       <div className="mt-1 text-sm text-muted-foreground">
                         {formatPrice(token.ladder.currentPrice)} ·
                         <span className={token.ladder.gainFromBasePct >= 0 ? "text-emerald-500" : "text-destructive"}> {token.ladder.gainFromBasePct >= 0 ? "+" : ""}{formatPct(token.ladder.gainFromBasePct)}</span> from base ·
-                        <span className="text-muted-foreground"> {formatPct(token.ladder.drawdownPct)}</span> off high
+                        <span className={token.ladder.drawdownPct > 0 ? "text-destructive" : "text-muted-foreground"}> {formatPct(-token.ladder.drawdownPct)}</span> off high
                       </div>
                     </div>
                   </div>
@@ -180,9 +179,12 @@ export default async function ActionCentrePage() {
               {watching.map((token) => (
                 <div key={token.id} className="flex flex-col sm:flex-row justify-between sm:items-center p-4 hover:bg-muted/30 transition-colors gap-3">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary/80 to-indigo-600/80 text-[10px] font-bold text-white ring-1 ring-white/10">
-                      {token.symbol.slice(0, 2)}
-                    </div>
+                    <TokenAvatar
+                      symbol={token.symbol}
+                      iconUrl={token.iconUrl}
+                      gradient="from-primary/80 to-indigo-600/80"
+                      className="h-8 w-8 text-[10px]"
+                    />
                     <div>
                       <Link href={`/tokens/${token.id}`} className="font-medium text-foreground hover:underline">
                         {token.symbol}
@@ -197,8 +199,8 @@ export default async function ActionCentrePage() {
                       {token.ladder.gainFromBasePct >= 0 ? "+" : ""}{formatPct(token.ladder.gainFromBasePct)} base
                     </span>
                     <span className="w-px h-3 bg-border" />
-                    <span className="text-muted-foreground">
-                      {formatPct(token.ladder.drawdownPct)} high
+                    <span className={token.ladder.drawdownPct > 0 ? "text-destructive" : "text-muted-foreground"}>
+                      {formatPct(-token.ladder.drawdownPct)} high
                     </span>
                   </div>
                 </div>

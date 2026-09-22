@@ -5,6 +5,7 @@ import StatusBadge from "@/components/StatusBadge";
 import EditTokenForm from "@/components/EditTokenForm";
 import RungEditor from "@/components/RungEditor";
 import DeleteButton from "@/components/DeleteButton";
+import TokenAvatar from "@/components/TokenAvatar";
 import { formatUsd, formatPrice, formatPct, formatQty, formatDate } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -24,9 +25,7 @@ export default async function TokenDetailPage({
     <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <header className="flex flex-col gap-5 border-b border-border pb-6 thin-rule md:flex-row md:items-end md:justify-between">
         <div className="flex items-center gap-4">
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary to-indigo-600 text-lg font-bold text-white ring-1 ring-white/20">
-            {token.symbol.slice(0, 2)}
-          </div>
+          <TokenAvatar symbol={token.symbol} iconUrl={token.iconUrl} className="h-14 w-14 text-lg" />
           <div>
             <div className="flex items-center gap-3">
               <h1 className="text-4xl font-display font-semibold tracking-tight text-foreground">{token.symbol}</h1>
@@ -57,11 +56,13 @@ export default async function TokenDetailPage({
           label="Base Price"
           value={formatPrice(ladder.basePrice)}
           sub={`${ladder.gainFromBasePct >= 0 ? "+" : ""}${formatPct(ladder.gainFromBasePct)} gain`}
+          subTone={ladder.gainFromBasePct > 0 ? "positive" : ladder.gainFromBasePct < 0 ? "negative" : "neutral"}
         />
         <StatCard
           label="Recent High"
           value={formatPrice(ladder.recentHigh)}
-          sub={`${formatPct(ladder.drawdownPct)} drawdown`}
+          sub={`${formatPct(-ladder.drawdownPct)} drawdown`}
+          subTone={ladder.drawdownPct > 0 ? "negative" : "neutral"}
         />
         <StatCard
           label="Cash Bucket"
@@ -230,12 +231,28 @@ export default async function TokenDetailPage({
   );
 }
 
-function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
+function StatCard({
+  label,
+  value,
+  sub,
+  subTone = "neutral",
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  subTone?: "positive" | "negative" | "neutral";
+}) {
+  const subColor =
+    subTone === "positive"
+      ? "text-emerald-500"
+      : subTone === "negative"
+        ? "text-destructive"
+        : "text-muted-foreground";
   return (
     <div className="rounded-2xl border border-border bg-card p-5">
       <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">{label}</div>
       <div className="mt-2 text-2xl font-display font-medium text-foreground tracking-tight">{value}</div>
-      {sub && <div className="mt-1 text-xs text-muted-foreground">{sub}</div>}
+      {sub && <div className={`mt-1 text-xs ${subColor}`}>{sub}</div>}
     </div>
   );
 }

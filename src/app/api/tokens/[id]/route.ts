@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getTokenWithLadder } from "@/lib/data";
 import { updateTokenSchema } from "@/lib/validation";
 import { zodErrorResponse, notFound } from "@/lib/apiHelpers";
+import { fetchTokenIconUrl } from "@/lib/tokenIcon";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -34,7 +35,12 @@ export async function PATCH(request: Request, { params }: Ctx) {
     data.basePriceSetAt = new Date();
   }
 
-  const token = await prisma.token.update({ where: { id }, data });
+  const dataWithIcon: typeof data & { iconUrl?: string | null } = data;
+  if (data.coingeckoId !== undefined && data.coingeckoId !== existing.coingeckoId) {
+    dataWithIcon.iconUrl = data.coingeckoId ? await fetchTokenIconUrl(data.coingeckoId) : null;
+  }
+
+  const token = await prisma.token.update({ where: { id }, data: dataWithIcon });
   return NextResponse.json(token);
 }
 

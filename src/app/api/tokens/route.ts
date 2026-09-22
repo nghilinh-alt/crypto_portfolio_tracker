@@ -4,6 +4,7 @@ import { getAllTokensWithLadder } from "@/lib/data";
 import { createTokenSchema } from "@/lib/validation";
 import { zodErrorResponse } from "@/lib/apiHelpers";
 import { DEFAULT_REBUY_RUNGS, SELL_LADDER_TEMPLATES } from "@/lib/ladder";
+import { fetchTokenIconUrl } from "@/lib/tokenIcon";
 
 export async function GET() {
   const tokens = await getAllTokensWithLadder();
@@ -39,6 +40,8 @@ export async function POST(request: Request) {
     deployPct: "deployPct" in r ? r.deployPct : 0,
   }));
 
+  const iconUrl = input.coingeckoId ? await fetchTokenIconUrl(input.coingeckoId) : null;
+
   const token = await prisma.token.create({
     data: {
       symbol: input.symbol,
@@ -46,6 +49,7 @@ export async function POST(request: Request) {
       category: input.category ?? null,
       coingeckoId: input.coingeckoId ?? null,
       bybitSymbol: input.bybitSymbol ?? null,
+      iconUrl,
       recentHigh: input.recentHigh,
       basePrice: input.basePrice,
       baseHoldings: input.baseHoldings,

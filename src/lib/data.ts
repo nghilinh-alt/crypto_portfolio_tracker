@@ -50,3 +50,19 @@ export async function getAllTokensWithLadder() {
     (a, b) => STATUS_PRIORITY[a.ladder.status] - STATUS_PRIORITY[b.ladder.status]
   );
 }
+
+/**
+ * Full snapshot history, oldest first. One row per weekly refresh (see
+ * src/lib/snapshot.ts) — small enough to fetch in full and let the client
+ * filter by timeframe/token, rather than re-querying per filter change.
+ */
+export async function getPortfolioHistory() {
+  return prisma.portfolioSnapshot.findMany({
+    orderBy: { capturedAt: "asc" },
+    include: {
+      tokenSnapshots: {
+        include: { token: { select: { id: true, symbol: true, name: true } } },
+      },
+    },
+  });
+}

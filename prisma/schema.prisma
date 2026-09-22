@@ -47,6 +47,7 @@ model Token {
   category        String? // e.g. "Core" / "Growth" / "Harvest" — informational grouping
   coingeckoId     String? // e.g. "bitcoin" — used by the CoinGecko price provider
   bybitSymbol     String? // e.g. "BTCUSDT" — used by the Bybit fallback provider
+  iconUrl         String? // logo image URL, fetched from CoinGecko via coingeckoId
   recentHigh      Float     @default(0)
   basePrice       Float     @default(0)
   basePriceSetAt  DateTime  @default(now()) // when basePrice was last (re)set — the "since" date for portfolio growth
@@ -56,9 +57,10 @@ model Token {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  sellRungs    SellRung[]
-  rebuyRungs   RebuyRung[]
-  transactions Transaction[]
+  sellRungs      SellRung[]
+  rebuyRungs     RebuyRung[]
+  transactions   Transaction[]
+  tokenSnapshots TokenSnapshot[]
 }
 
 // Sell ladder rung. pct is the % GAIN above basePrice that triggers this
@@ -96,6 +98,36 @@ model RebuyRung {
   createdAt   DateTime   @default(now())
 
   @@unique([tokenId, order])
+}
+
+// One row per weekly price refresh, capturing the portfolio's total value
+// at that moment — the basis for the Dashboard's Portfolio Progress chart.
+// Never recomputed retroactively; a point in history stays what it was.
+model PortfolioSnapshot {
+  id            String   @id @default(cuid())
+  capturedAt    DateTime @default(now())
+  totalValueUsd Float // Σ holdingsValueUsd + Σ cashBucket across all tokens, at capture time
+  cashBucketUsd Float
+
+  tokenSnapshots TokenSnapshot[]
+
+  @@index([capturedAt])
+}
+
+// A single token's contribution to a PortfolioSnapshot, so the progress
+// chart can also be filtered down to one token instead of the whole
+// portfolio.
+model TokenSnapshot {
+  id               String            @id @default(cuid())
+  snapshotId       String
+  snapshot         PortfolioSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  tokenId          String
+  token            Token             @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+  price            Float
+  holdingsValueUsd Float
+
+  @@index([tokenId])
+  @@index([snapshotId])
 }
 
 // Every BUY, SELL, DEPOSIT, and WITHDRAW is logged here. This is the single

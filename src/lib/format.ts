@@ -39,6 +39,12 @@ export function formatQty(value: number): string {
   return new Intl.NumberFormat("en-US", { maximumFractionDigits: 6 }).format(value);
 }
 
+/** Short axis-label form for charts, e.g. "Sep 22". */
+export function formatShortDate(value: string | Date): string {
+  const date = typeof value === "string" ? new Date(value) : value;
+  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(date);
+}
+
 export function formatDate(value: string | Date | null | undefined): string {
   if (!value) return "—";
   const date = typeof value === "string" ? new Date(value) : value;

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getPrices } from "@/lib/priceProvider";
+import { capturePortfolioSnapshot } from "@/lib/snapshot";
 
 export const dynamic = "force-dynamic";
 
@@ -64,6 +65,10 @@ export async function GET(request: Request) {
       recentHigh,
     });
   }
+
+  // One snapshot per refresh, after prices/recentHigh are settled, so the
+  // Portfolio Progress chart has a real data point for this check.
+  await capturePortfolioSnapshot();
 
   return NextResponse.json({ updated, errors, checkedAt: now.toISOString() });
 }
