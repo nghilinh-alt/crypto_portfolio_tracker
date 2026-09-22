@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Crypto Portfolio Manager"
+description = "A polished personal crypto portfolio command centre for tracking positions, sell and rebuy ladders, cash reserves, tax reserves, and actionable investment triggers."
+version = "1.0.0"
+id = "artifacts/crypto-portfolio"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 19281
+
+[services.development]
+run = "pnpm --filter @workspace/crypto-portfolio run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/crypto-portfolio", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/crypto-portfolio/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "19281"
+BASE_PATH = "/"
