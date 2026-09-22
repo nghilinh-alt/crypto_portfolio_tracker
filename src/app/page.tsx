@@ -9,6 +9,34 @@ export const dynamic = "force-dynamic";
 export default async function DashboardPage() {
   const tokens = await getAllTokensWithLadder();
 
+  const totals = tokens.reduce(
+    (acc, t) => {
+      acc.holdingsValue += t.ladder.holdingsValueUsd;
+      acc.cashBucket += t.ladder.cashBucket;
+      acc.contributions += t.ladder.cashBucketContributions;
+      acc.taxReserved += t.ladder.taxReserved;
+      acc.valueAtBase += t.baseHoldings * t.basePrice;
+      if (t.basePrice > 0) {
+        if (!acc.earliestBaseDate || t.basePriceSetAt < acc.earliestBaseDate) {
+          acc.earliestBaseDate = t.basePriceSetAt;
+        }
+      }
+      return acc;
+    },
+    {
+      holdingsValue: 0,
+      cashBucket: 0,
+      contributions: 0,
+      taxReserved: 0,
+      valueAtBase: 0,
+      earliestBaseDate: null as Date | null,
+    }
+  );
+
+  const totalPortfolioValue = totals.holdingsValue + totals.cashBucket;
+  const gainUsd = totalPortfolioValue - totals.valueAtBase;
+  const gainPct = totals.valueAtBase > 0 ? (gainUsd / totals.valueAtBase) * 100 : 0;
+
   return (
     <div className="space-y-6">
       <div>
@@ -17,6 +45,32 @@ export default async function DashboardPage() {
           Current price is the last weekend check for every token — there&apos;s no live feed.
         </p>
       </div>
+
+      {tokens.length > 0 && (
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+          <TotalCard label="Total Holdings Value" value={formatUsd(totals.holdingsValue)} />
+          <TotalCard label="Total Cash Bucket" value={formatUsd(totals.cashBucket)} />
+          <TotalCard label="Total Contributions" value={formatUsd(totals.contributions)} />
+          <TotalCard label="Total Tax Reserved" value={formatUsd(totals.taxReserved)} />
+          <TotalCard
+            label="Total Portfolio Value"
+            value={formatUsd(totalPortfolioValue)}
+            sub="holdings + cash bucket"
+          />
+          <TotalCard
+            label="Gain / Loss vs Base"
+            value={`${gainUsd >= 0 ? "+" : ""}${formatUsd(gainUsd)}`}
+            sub={
+              totals.earliestBaseDate
+                ? `${gainPct >= 0 ? "+" : ""}${gainPct.toFixed(1)}% since ${formatDate(
+                    totals.earliestBaseDate
+                  )}`
+                : undefined
+            }
+            tone={gainUsd > 0 ? "positive" : gainUsd < 0 ? "negative" : "neutral"}
+          />
+        </div>
+      )}
 
       {tokens.length === 0 ? (
         <EmptyState />
@@ -29,6 +83,8 @@ export default async function DashboardPage() {
                 <th className="px-4 py-3">Category</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3 text-right">Current Price</th>
+                <th className="px-4 py-3 text-right">Base Price</th>
+                <th className="px-4 py-3 text-right">Gain</th>
                 <th className="px-4 py-3 text-right">Recent High</th>
                 <th className="px-4 py-3 text-right">Drawdown</th>
                 <th className="px-4 py-3 text-right">Holdings</th>
@@ -57,6 +113,12 @@ export default async function DashboardPage() {
                   </td>
                   <td className="px-4 py-3 text-right tabular-nums">
                     {formatPrice(token.ladder.currentPrice)}
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums text-neutral-500">
+                    {formatPrice(token.ladder.basePrice)}
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums text-neutral-500">
+                    +{formatPct(token.ladder.gainFromBasePct)}
                   </td>
                   <td className="px-4 py-3 text-right tabular-nums text-neutral-500">
                     {formatPrice(token.ladder.recentHigh)}
@@ -88,6 +150,28 @@ export default async function DashboardPage() {
           </table>
         </div>
       )}
+    </div>
+  );
+}
+
+function TotalCard({
+  label,
+  value,
+  sub,
+  tone = "neutral",
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  tone?: "positive" | "negative" | "neutral";
+}) {
+  const valueColor =
+    tone === "positive" ? "text-green-700" : tone === "negative" ? "text-red-700" : "text-neutral-900";
+  return (
+    <div className="rounded-lg border border-neutral-200 bg-white p-3">
+      <div className="text-xs font-medium uppercase tracking-wide text-neutral-500">{label}</div>
+      <div className={`mt-1 text-lg font-semibold tabular-nums ${valueColor}`}>{value}</div>
+      {sub && <div className="text-xs text-neutral-500">{sub}</div>}
     </div>
   );
 }
