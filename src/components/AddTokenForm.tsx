@@ -14,8 +14,6 @@ export default function AddTokenForm() {
     setBusy(true);
     setError(null);
 
-    // Capture the element now — the browser nulls e.currentTarget once the
-    // event finishes dispatching, which happens before our `await` resolves.
     const formEl = e.currentTarget;
     const form = new FormData(formEl);
     const priceNow = form.get("currentPrice") ? Number(form.get("currentPrice")) : undefined;
@@ -26,8 +24,6 @@ export default function AddTokenForm() {
       coingeckoId: form.get("coingeckoId") ? String(form.get("coingeckoId")) : undefined,
       bybitSymbol: form.get("bybitSymbol") ? String(form.get("bybitSymbol")) : undefined,
       currentPrice: priceNow,
-      // Both anchors default to today's price if left blank — recentHigh
-      // ratchets up from there (rebuy), basePrice stays fixed (sell).
       recentHigh: form.get("recentHigh") ? Number(form.get("recentHigh")) : priceNow,
       basePrice: form.get("basePrice") ? Number(form.get("basePrice")) : priceNow,
       baseHoldings: form.get("baseHoldings") ? Number(form.get("baseHoldings")) : undefined,
@@ -58,8 +54,9 @@ export default function AddTokenForm() {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-700"
+        className="inline-flex w-full md:w-auto items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
       >
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
         Add Token
       </button>
     );
@@ -68,24 +65,35 @@ export default function AddTokenForm() {
   return (
     <form
       onSubmit={handleSubmit}
-      className="rounded-lg border border-neutral-200 bg-white p-4 space-y-3"
+      className="rounded-2xl border border-border bg-card p-6 space-y-6 animate-in fade-in slide-in-from-top-2 w-full"
     >
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="flex items-center justify-between border-b border-border/50 pb-4">
+        <h3 className="text-lg font-display font-medium text-foreground">Add New Token</h3>
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          className="text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
         <Field label="Symbol" name="symbol" required placeholder="BTC" />
         <Field label="Name" name="name" required placeholder="Bitcoin" />
-        <label className="block text-sm">
-          <span className="text-neutral-700">Category</span>
+        <label className="block space-y-1.5">
+          <span className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Category</span>
           <select
             name="category"
             defaultValue=""
-            className="mt-1 block w-full rounded-md border border-neutral-300 px-2 py-1.5 text-sm focus:border-neutral-500 focus:outline-none"
+            className="block w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors h-10"
           >
             <option value="">— none —</option>
             <option value="Core">Core</option>
             <option value="Growth">Growth</option>
             <option value="Harvest">Harvest</option>
           </select>
-          <span className="text-xs text-neutral-400">picks the sell-ladder template</span>
+          <span className="text-[10px] text-muted-foreground/70">picks the sell-ladder template</span>
         </label>
         <Field
           label="CoinGecko ID"
@@ -123,26 +131,31 @@ export default function AddTokenForm() {
           hint="sell % sized against this"
         />
       </div>
-      <p className="text-xs text-neutral-500">
-        Picking a category applies its sell-ladder template automatically. The rebuy ladder
-        defaults to -15/-25/-35/-45% off recent high, deploying 10/20/30/40% of Cash Bucket
-        Contributions. Edit any of it from the token page after creating it.
-      </p>
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      <div className="flex gap-2">
-        <button
-          type="submit"
-          disabled={busy}
-          className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-50"
-        >
-          {busy ? "Creating…" : "Create Token"}
-        </button>
+
+      <div className="bg-muted/30 rounded-lg p-4 border border-border/50">
+        <p className="text-xs text-muted-foreground">
+          <span className="font-semibold text-foreground">Pro tip:</span> Picking a category applies its sell-ladder template automatically. The rebuy ladder
+          defaults to -15/-25/-35/-45% off recent high, deploying 10/20/30/40% of Cash Bucket
+          Contributions. Edit any of it from the token page after creating it.
+        </p>
+      </div>
+
+      {error && <p className="text-sm text-destructive">{error}</p>}
+
+      <div className="flex justify-end gap-3 pt-2">
         <button
           type="button"
           onClick={() => setOpen(false)}
-          className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50"
+          className="rounded-md px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
         >
           Cancel
+        </button>
+        <button
+          type="submit"
+          disabled={busy}
+          className="rounded-md bg-primary px-6 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+        >
+          {busy ? "Creating…" : "Create Token"}
         </button>
       </div>
     </form>
@@ -167,17 +180,17 @@ function Field({
   hint?: string;
 }) {
   return (
-    <label className="block text-sm">
-      <span className="text-neutral-700">{label}</span>
+    <label className="block space-y-1.5">
+      <span className="text-xs font-mono uppercase tracking-wider text-muted-foreground">{label}</span>
       <input
         name={name}
         type={type}
         required={required}
         placeholder={placeholder}
         step={step}
-        className="mt-1 block w-full rounded-md border border-neutral-300 px-2 py-1.5 text-sm focus:border-neutral-500 focus:outline-none"
+        className="block w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors h-10"
       />
-      {hint && <span className="text-xs text-neutral-400">{hint}</span>}
+      {hint && <span className="text-[10px] text-muted-foreground/70">{hint}</span>}
     </label>
   );
 }

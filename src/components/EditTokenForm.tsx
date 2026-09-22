@@ -69,92 +69,98 @@ export default function EditTokenForm({
     return (
       <button
         onClick={() => setOpen(true)}
-        className="text-xs font-medium text-neutral-500 hover:text-neutral-900 hover:underline"
+        className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm font-medium text-foreground hover:bg-muted transition-colors flex items-center justify-center"
       >
-        Edit token
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+        Edit Configuration
       </button>
     );
   }
 
   return (
-    <div className="rounded-md border border-neutral-200 bg-neutral-50 p-3 text-sm space-y-2">
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <label className="block">
-          <span className="text-xs text-neutral-500">Name</span>
+    <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
+      <div className="space-y-3">
+        <label className="block space-y-1">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Name</span>
           <input
             value={values.name}
             onChange={(e) => setValues((v) => ({ ...v, name: e.target.value }))}
-            className="mt-1 block w-full rounded border border-neutral-300 px-2 py-1"
+            className="block w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
           />
         </label>
-        <label className="block">
-          <span className="text-xs text-neutral-500">Category</span>
+        <label className="block space-y-1">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Category</span>
           <input
             value={values.category}
             onChange={(e) => setValues((v) => ({ ...v, category: e.target.value }))}
             placeholder="Core / Growth / Harvest"
-            className="mt-1 block w-full rounded border border-neutral-300 px-2 py-1"
+            className="block w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
           />
         </label>
-        <label className="block">
-          <span className="text-xs text-neutral-500">CoinGecko ID</span>
+        <label className="block space-y-1">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">CoinGecko ID</span>
           <input
             value={values.coingeckoId}
             onChange={(e) => setValues((v) => ({ ...v, coingeckoId: e.target.value }))}
-            className="mt-1 block w-full rounded border border-neutral-300 px-2 py-1"
+            className="block w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
           />
         </label>
-        <label className="block">
-          <span className="text-xs text-neutral-500">Bybit Symbol</span>
+        <label className="block space-y-1">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Bybit Symbol</span>
           <input
             value={values.bybitSymbol}
             onChange={(e) => setValues((v) => ({ ...v, bybitSymbol: e.target.value }))}
-            className="mt-1 block w-full rounded border border-neutral-300 px-2 py-1"
+            className="block w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
           />
         </label>
-        <label className="block">
-          <span className="text-xs text-neutral-500">Recent High (only ratchets up, drives rebuy)</span>
+        <label className="block space-y-1">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Recent High (USD)</span>
           <input
             type="number"
             step="any"
             value={values.recentHigh}
             onChange={(e) => setValues((v) => ({ ...v, recentHigh: e.target.value }))}
-            className="mt-1 block w-full rounded border border-neutral-300 px-2 py-1"
+            className="block w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
           />
+          <span className="text-[10px] text-muted-foreground/70">ratchets up, drives rebuy</span>
         </label>
-        <label className="block">
-          <span className="text-xs text-neutral-500">Base Price (fixed, drives sell)</span>
+        <label className="block space-y-1">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Base Price (USD)</span>
           <input
             type="number"
             step="any"
             value={values.basePrice}
             onChange={(e) => setValues((v) => ({ ...v, basePrice: e.target.value }))}
-            className="mt-1 block w-full rounded border border-neutral-300 px-2 py-1"
+            className="block w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
           />
+          <span className="text-[10px] text-muted-foreground/70">fixed, drives sell</span>
         </label>
-        <label className="block">
-          <span className="text-xs text-neutral-500">Base Holdings (sell % sized against this)</span>
+        <label className="block space-y-1">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Base Holdings</span>
           <input
             type="number"
             step="any"
             value={values.baseHoldings}
             onChange={(e) => setValues((v) => ({ ...v, baseHoldings: e.target.value }))}
-            className="mt-1 block w-full rounded border border-neutral-300 px-2 py-1"
+            className="block w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
           />
+          <span className="text-[10px] text-muted-foreground/70">sell % sized against this</span>
         </label>
       </div>
-      {error && <p className="text-red-600">{error}</p>}
-      <div className="flex gap-2">
+
+      {error && <p className="text-sm text-destructive">{error}</p>}
+
+      <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-border/50">
         <button
           onClick={save}
           disabled={busy}
-          className="rounded bg-neutral-900 px-3 py-1 text-xs font-medium text-white hover:bg-neutral-700"
+          className="flex-1 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
         >
-          Save
+          {busy ? "Saving..." : "Save Settings"}
         </button>
         <button
           onClick={() => setOpen(false)}
-          className="rounded border border-neutral-300 px-3 py-1 text-xs text-neutral-700 hover:bg-neutral-100"
+          className="flex-1 rounded-md border border-border px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
         >
           Cancel
         </button>

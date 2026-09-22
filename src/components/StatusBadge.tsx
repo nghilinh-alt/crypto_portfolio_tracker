@@ -1,18 +1,18 @@
 import type { TokenStatus } from "@/lib/ladder";
 
 const STYLES: Record<TokenStatus, string> = {
-  SELL: "bg-red-100 text-red-800 ring-red-600/20",
-  BUY: "bg-green-100 text-green-800 ring-green-600/20",
-  WATCH: "bg-amber-100 text-amber-800 ring-amber-600/20",
-  HOLD: "bg-neutral-100 text-neutral-600 ring-neutral-500/20",
+  SELL: "bg-destructive/20 text-destructive ring-destructive/30",
+  BUY: "bg-emerald-500/20 text-emerald-400 ring-emerald-500/30",
+  WATCH: "bg-amber-500/20 text-amber-400 ring-amber-500/30",
+  HOLD: "bg-secondary text-secondary-foreground ring-border",
 };
 
 export default function StatusBadge({ status }: { status: TokenStatus }) {
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset ${STYLES[status]}`}
+      className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-mono uppercase tracking-wider font-semibold ring-1 ring-inset ${STYLES[status]}`}
     >
-      {status}
+      {status === 'SELL' ? 'Sell Target' : status === 'BUY' ? 'Rebuy Target' : status}
     </span>
   );
 }

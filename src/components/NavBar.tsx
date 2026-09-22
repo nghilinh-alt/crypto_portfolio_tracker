@@ -15,11 +15,13 @@ export default function NavBar() {
   const pathname = usePathname();
 
   return (
-    <header className="border-b border-neutral-200 bg-white">
-      <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
-        <div className="flex items-center gap-6">
-          <span className="font-semibold text-neutral-900">Crypto Portfolio Manager</span>
-          <nav className="flex gap-4 text-sm">
+    <header className="border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8">
+          <Link href="/" className="font-display font-semibold text-foreground text-lg tracking-tight hover:opacity-80 transition-opacity">
+            Cockpit
+          </Link>
+          <nav className="flex items-center gap-6 text-sm overflow-x-auto pb-2 sm:pb-0">
             {LINKS.map((link) => {
               const active =
                 link.href === "/" ? pathname === "/" : pathname.startsWith(link.href);
@@ -27,11 +29,11 @@ export default function NavBar() {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={
+                  className={`whitespace-nowrap transition-colors ${
                     active
-                      ? "font-medium text-neutral-900"
-                      : "text-neutral-500 hover:text-neutral-900"
-                  }
+                      ? "font-medium text-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
                 >
                   {link.label}
                 </Link>
@@ -39,7 +41,9 @@ export default function NavBar() {
             })}
           </nav>
         </div>
-        <RefreshPricesButton />
+        <div className="flex items-center">
+          <RefreshPricesButton />
+        </div>
       </div>
     </header>
   );

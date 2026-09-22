@@ -21,51 +21,57 @@ export default async function TokenDetailPage({
   const { ladder } = token;
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-start justify-between">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl font-semibold text-neutral-900">{token.symbol}</h1>
-            <StatusBadge status={ladder.status} />
+    <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <header className="flex flex-col gap-5 border-b border-border pb-6 thin-rule md:flex-row md:items-end md:justify-between">
+        <div className="flex items-center gap-4">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary to-indigo-600 text-lg font-bold text-white ring-1 ring-white/20">
+            {token.symbol.slice(0, 2)}
           </div>
-          <p className="text-sm text-neutral-500">{token.name}</p>
+          <div>
+            <div className="flex items-center gap-3">
+              <h1 className="text-4xl font-display font-semibold tracking-tight text-foreground">{token.symbol}</h1>
+              <StatusBadge status={ladder.status} />
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground">{token.name}</p>
+          </div>
         </div>
-        <Link
-          href={`/transactions?tokenId=${token.id}`}
-          className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-700"
-        >
-          Log Transaction
-        </Link>
-      </div>
+        <div className="flex w-full md:w-auto">
+          <Link
+            href={`/transactions?tokenId=${token.id}`}
+            className="inline-flex w-full md:w-auto items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+            Log Transaction
+          </Link>
+        </div>
+      </header>
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <StatCard label="Current Price" value={formatPrice(ladder.currentPrice)} />
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        <StatCard label="Current Price" value={formatPrice(ladder.currentPrice)} sub={`Checked ${formatDate(token.lastPriceUpdate)}`} />
         <StatCard
-          label="Recent High"
-          value={formatPrice(ladder.recentHigh)}
-          sub={`${formatPct(ladder.drawdownPct)} off · drives rebuy`}
+          label="Holdings Value"
+          value={formatUsd(ladder.holdingsValueUsd)}
+          sub={`${formatQty(ladder.holdings)} ${token.symbol}`}
         />
         <StatCard
           label="Base Price"
           value={formatPrice(ladder.basePrice)}
-          sub={`+${formatPct(ladder.gainFromBasePct)} · drives sell`}
+          sub={`${ladder.gainFromBasePct >= 0 ? "+" : ""}${formatPct(ladder.gainFromBasePct)} gain`}
         />
         <StatCard
-          label="Holdings"
-          value={formatQty(ladder.holdings)}
-          sub={formatUsd(ladder.holdingsValueUsd)}
+          label="Recent High"
+          value={formatPrice(ladder.recentHigh)}
+          sub={`${formatPct(ladder.drawdownPct)} drawdown`}
+        />
+        <StatCard
+          label="Cash Bucket"
+          value={formatUsd(ladder.cashBucket)}
+          sub={`From ${formatUsd(ladder.cashBucketContributions)}`}
         />
         <StatCard
           label="Base Holdings"
           value={formatQty(ladder.baseHoldings)}
           sub="sell % sized against this"
-        />
-        <StatCard label="Last Checked" value={formatDate(token.lastPriceUpdate)} />
-        <StatCard label="Cash Bucket" value={formatUsd(ladder.cashBucket)} sub="net, spendable" />
-        <StatCard
-          label="Cash Bucket Contributions"
-          value={formatUsd(ladder.cashBucketContributions)}
-          sub="gross, lifetime, after tax"
         />
         <StatCard
           label="Tax Reserved (25%)"
@@ -73,119 +79,141 @@ export default async function TokenDetailPage({
           sub="withheld from realized profit"
         />
         <StatCard
-          label="Suggested Rebuy Deploy"
+          label="Suggested Rebuy"
           value={formatUsd(ladder.suggestedRebuyDeployUsd)}
           sub="capped at Cash Bucket"
         />
       </div>
 
-      <EditTokenForm
-        tokenId={token.id}
-        name={token.name}
-        category={token.category}
-        coingeckoId={token.coingeckoId}
-        bybitSymbol={token.bybitSymbol}
-        recentHigh={token.recentHigh}
-        basePrice={token.basePrice}
-        baseHoldings={token.baseHoldings}
-      />
-
-      <section>
-        <h2 className="text-sm font-semibold text-neutral-900">
-          Sell Ladder{" "}
-          <span className="font-normal text-neutral-500">
-            — % gain above base price, sized against base holdings
-          </span>
-        </h2>
-        <div className="mt-2 rounded-lg border border-neutral-200 bg-white p-4">
-          <RungEditor
-            tokenId={token.id}
-            kind="sell"
-            portionLabel="Sell %"
-            rungs={ladder.sellRungs.map((r) => ({
-              id: r.id,
-              order: r.order,
-              pct: r.pct,
-              portionPct: r.sellPortionPct,
-              triggerPrice: r.triggerPrice,
-              status: r.status,
-              triggeredAt: r.triggeredAt ? r.triggeredAt.toISOString() : null,
-              isEligible: r.isEligible,
-              extraLabel: "Suggested Qty",
-              extraValue: formatQty(r.suggestedSellQty),
-            }))}
-          />
+      <div className="grid lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-1 space-y-8">
+          <section className="bg-card border border-border rounded-2xl p-6">
+            <h2 className="text-xl font-display font-medium text-foreground mb-4">Token Settings</h2>
+            <EditTokenForm
+              tokenId={token.id}
+              name={token.name}
+              category={token.category}
+              coingeckoId={token.coingeckoId}
+              bybitSymbol={token.bybitSymbol}
+              recentHigh={token.recentHigh}
+              basePrice={token.basePrice}
+              baseHoldings={token.baseHoldings}
+            />
+          </section>
         </div>
-      </section>
 
-      <section>
-        <h2 className="text-sm font-semibold text-neutral-900">
-          Rebuy Ladder{" "}
-          <span className="font-normal text-neutral-500">
-            — % drop below recent high, deploying % of Cash Bucket Contributions
-          </span>
-        </h2>
-        <div className="mt-2 rounded-lg border border-neutral-200 bg-white p-4">
-          <RungEditor
-            tokenId={token.id}
-            kind="rebuy"
-            portionLabel="Deploy %"
-            rungs={ladder.rebuyRungs.map((r) => ({
-              id: r.id,
-              order: r.order,
-              pct: r.pct,
-              portionPct: r.deployPct,
-              triggerPrice: r.triggerPrice,
-              status: r.status,
-              triggeredAt: r.triggeredAt ? r.triggeredAt.toISOString() : null,
-              isEligible: r.isEligible,
-              extraLabel: "Raw Deploy $",
-              extraValue: formatUsd(r.rawDeployUsd),
-            }))}
-          />
+        <div className="lg:col-span-2 space-y-8">
+          <section className="bg-card border border-border rounded-2xl overflow-hidden flex flex-col">
+            <div className="p-6 border-b border-border/50 bg-muted/10">
+              <h2 className="text-xl font-display font-medium text-foreground">
+                Sell Ladder
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                % gain above base price, sized against base holdings
+              </p>
+            </div>
+            <div className="p-6 flex-1">
+              <RungEditor
+                tokenId={token.id}
+                kind="sell"
+                portionLabel="Sell %"
+                rungs={ladder.sellRungs.map((r) => ({
+                  id: r.id,
+                  order: r.order,
+                  pct: r.pct,
+                  portionPct: r.sellPortionPct,
+                  triggerPrice: r.triggerPrice,
+                  status: r.status,
+                  triggeredAt: r.triggeredAt ? r.triggeredAt.toISOString() : null,
+                  isEligible: r.isEligible,
+                  extraLabel: "Suggested Qty",
+                  extraValue: formatQty(r.suggestedSellQty),
+                }))}
+              />
+            </div>
+          </section>
+
+          <section className="bg-card border border-border rounded-2xl overflow-hidden flex flex-col">
+            <div className="p-6 border-b border-border/50 bg-muted/10">
+              <h2 className="text-xl font-display font-medium text-foreground">
+                Rebuy Ladder
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                % drop below recent high, deploying % of Cash Bucket Contributions
+              </p>
+            </div>
+            <div className="p-6 flex-1">
+              <RungEditor
+                tokenId={token.id}
+                kind="rebuy"
+                portionLabel="Deploy %"
+                rungs={ladder.rebuyRungs.map((r) => ({
+                  id: r.id,
+                  order: r.order,
+                  pct: r.pct,
+                  portionPct: r.deployPct,
+                  triggerPrice: r.triggerPrice,
+                  status: r.status,
+                  triggeredAt: r.triggeredAt ? r.triggeredAt.toISOString() : null,
+                  isEligible: r.isEligible,
+                  extraLabel: "Raw Deploy $",
+                  extraValue: formatUsd(r.rawDeployUsd),
+                }))}
+              />
+            </div>
+          </section>
         </div>
-      </section>
+      </div>
 
       <section>
-        <h2 className="text-sm font-semibold text-neutral-900">Transaction History</h2>
-        <div className="mt-2 overflow-x-auto rounded-lg border border-neutral-200 bg-white">
+        <div className="flex items-center justify-between pb-2 border-b border-border/50 mb-4">
+          <h2 className="text-2xl font-display font-medium flex items-center gap-3">
+            <span className="text-sm font-mono text-muted-foreground">03</span>
+            Transaction History
+          </h2>
+        </div>
+        <div className="overflow-x-auto rounded-2xl border border-border bg-card">
           {token.transactions.length === 0 ? (
-            <p className="p-4 text-sm text-neutral-500">No transactions logged yet.</p>
+            <p className="p-8 text-center text-sm text-muted-foreground bg-muted/10">No transactions logged yet.</p>
           ) : (
-            <table className="min-w-full divide-y divide-neutral-200 text-sm">
-              <thead className="text-left text-xs font-medium uppercase tracking-wide text-neutral-500">
+            <table className="min-w-full divide-y divide-border/50 text-sm">
+              <thead className="bg-muted/30 text-left text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
                 <tr>
-                  <th className="px-4 py-2">Date</th>
-                  <th className="px-4 py-2">Type</th>
-                  <th className="px-4 py-2">Funded By</th>
-                  <th className="px-4 py-2 text-right">Qty</th>
-                  <th className="px-4 py-2 text-right">Price/Unit</th>
-                  <th className="px-4 py-2 text-right">USD</th>
-                  <th className="px-4 py-2">Note</th>
-                  <th className="px-4 py-2" />
+                  <th className="px-6 py-3">Date</th>
+                  <th className="px-6 py-3">Type</th>
+                  <th className="px-6 py-3">Funded By</th>
+                  <th className="px-6 py-3 text-right">Qty</th>
+                  <th className="px-6 py-3 text-right">Price/Unit</th>
+                  <th className="px-6 py-3 text-right">USD</th>
+                  <th className="px-6 py-3">Note</th>
+                  <th className="px-6 py-3" />
                 </tr>
               </thead>
-              <tbody className="divide-y divide-neutral-100">
+              <tbody className="divide-y divide-border/50">
                 {token.transactions.map((tx) => (
-                  <tr key={tx.id}>
-                    <td className="whitespace-nowrap px-4 py-2 text-neutral-500">
+                  <tr key={tx.id} className="hover:bg-muted/40 transition-colors">
+                    <td className="whitespace-nowrap px-6 py-4 text-muted-foreground font-mono text-xs">
                       {formatDate(tx.occurredAt)}
                     </td>
-                    <td className="px-4 py-2 font-medium">{tx.type}</td>
-                    <td className="px-4 py-2 text-neutral-500">{tx.fundedBy ?? "—"}</td>
-                    <td className="px-4 py-2 text-right tabular-nums">
+                    <td className="px-6 py-4">
+                      <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-mono uppercase tracking-wider font-semibold ring-1 ring-inset ${tx.type === 'SELL' ? 'bg-destructive/20 text-destructive ring-destructive/30' : tx.type === 'BUY' ? 'bg-emerald-500/20 text-emerald-400 ring-emerald-500/30' : 'bg-secondary text-secondary-foreground ring-border'}`}>
+                        {tx.type}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-muted-foreground text-xs">{tx.fundedBy ?? "—"}</td>
+                    <td className="px-6 py-4 text-right font-mono text-foreground">
                       {tx.quantity !== null ? formatQty(tx.quantity) : "—"}
                     </td>
-                    <td className="px-4 py-2 text-right tabular-nums">
+                    <td className="px-6 py-4 text-right font-mono text-foreground">
                       {tx.pricePerUnit !== null ? formatPrice(tx.pricePerUnit) : "—"}
                     </td>
-                    <td className="px-4 py-2 text-right tabular-nums">
+                    <td className="px-6 py-4 text-right font-mono text-foreground">
                       {formatUsd(tx.usdAmount)}
                     </td>
-                    <td className="max-w-[16rem] truncate px-4 py-2 text-neutral-500">
+                    <td className="max-w-[16rem] truncate px-6 py-4 text-muted-foreground text-xs">
                       {tx.note ?? ""}
                     </td>
-                    <td className="px-4 py-2 text-right">
+                    <td className="px-6 py-4 text-right">
                       <DeleteButton
                         url={`/api/transactions/${tx.id}`}
                         confirmText="Delete this transaction? Any rung it triggered will stay triggered."
@@ -204,10 +232,10 @@ export default async function TokenDetailPage({
 
 function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="rounded-lg border border-neutral-200 bg-white p-3">
-      <div className="text-xs font-medium uppercase tracking-wide text-neutral-500">{label}</div>
-      <div className="mt-1 text-lg font-semibold tabular-nums text-neutral-900">{value}</div>
-      {sub && <div className="text-xs text-neutral-500">{sub}</div>}
+    <div className="rounded-2xl border border-border bg-card p-5">
+      <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className="mt-2 text-2xl font-display font-medium text-foreground tracking-tight">{value}</div>
+      {sub && <div className="mt-1 text-xs text-muted-foreground">{sub}</div>}
     </div>
   );
 }

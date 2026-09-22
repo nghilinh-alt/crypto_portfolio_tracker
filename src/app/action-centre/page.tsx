@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getAllTokensWithLadder } from "@/lib/data";
 import { formatUsd, formatPrice, formatPct, formatQty } from "@/lib/format";
+import StatusBadge from "@/components/StatusBadge";
 
 export const dynamic = "force-dynamic";
 
@@ -12,122 +13,200 @@ export default async function ActionCentrePage() {
   const watching = tokens.filter((t) => t.ladder.status === "WATCH");
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-xl font-semibold text-neutral-900">Action Centre</h1>
-        <p className="mt-1 text-sm text-neutral-500">
-          Tokens with a rung at or past its trigger price, based on the last weekend check.
-        </p>
-      </div>
+    <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <header className="flex flex-col gap-5 border-b border-border pb-6 thin-rule md:flex-row md:items-end md:justify-between">
+        <div>
+          <h1 className="text-4xl font-display font-semibold tracking-tight md:text-5xl text-foreground">Action Centre</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Tokens with a rung at or past its trigger price, based on the last check.
+          </p>
+        </div>
+      </header>
 
-      {actionable.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-neutral-300 bg-white p-8 text-center text-sm text-neutral-500">
-          Nothing needs action right now.
-        </p>
-      ) : (
-        <div className="space-y-4">
-          {actionable.map((token) => (
-            <div key={token.id} className="rounded-lg border border-neutral-200 bg-white p-4">
-              <div className="flex items-baseline justify-between">
-                <div>
-                  <Link href={`/tokens/${token.id}`} className="font-semibold hover:underline">
-                    {token.symbol}
-                  </Link>
-                  <span className="ml-2 text-sm text-neutral-500">{token.name}</span>
+      <section className="bg-card border border-border overflow-hidden rounded-2xl">
+        <div className="grid gap-6 p-6 md:grid-cols-3 md:items-end">
+          <div>
+            <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+              Review status
+            </div>
+            <div className="mt-2 text-3xl font-display text-foreground tracking-tight">
+              {actionable.length
+                ? `${actionable.length} ${actionable.length === 1 ? "token needs" : "tokens need"} attention`
+                : "No targets crossed"}
+            </div>
+          </div>
+          <div>
+            <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+              Tokens watching
+            </div>
+            <div className="mt-1 text-2xl font-display text-foreground tracking-tight">{watching.length}</div>
+          </div>
+        </div>
+      </section>
+
+      <section className="space-y-4">
+        <div className="flex items-end justify-between border-b border-border/60 pb-3">
+          <div>
+            <div className="flex items-center gap-3">
+              <span className="font-mono text-xs text-muted-foreground">01</span>
+              <h2 className="text-2xl font-display font-medium text-foreground">Action required</h2>
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground">Targets crossed at current prices.</p>
+          </div>
+          <div className="flex items-center justify-center rounded-full bg-secondary text-secondary-foreground text-xs font-mono px-2 py-0.5">
+            {actionable.length}
+          </div>
+        </div>
+
+        {actionable.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-border bg-card/50 p-8 text-center text-sm text-muted-foreground">
+            Nothing needs action right now.
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {actionable.map((token) => (
+              <div key={token.id} className="overflow-hidden rounded-2xl border border-border bg-card transition-colors">
+                <div className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center">
+                  <div className="flex min-w-0 flex-1 items-center gap-4">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary to-indigo-600 text-xs font-bold text-white ring-1 ring-white/20">
+                      {token.symbol.slice(0, 2)}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Link href={`/tokens/${token.id}`} className="text-xl font-display font-medium text-foreground hover:underline">
+                          {token.symbol}
+                        </Link>
+                        <StatusBadge status={token.ladder.status} />
+                      </div>
+                      <div className="mt-1 text-sm text-muted-foreground">
+                        {formatPrice(token.ladder.currentPrice)} ·
+                        <span className={token.ladder.gainFromBasePct >= 0 ? "text-emerald-500" : "text-destructive"}> {token.ladder.gainFromBasePct >= 0 ? "+" : ""}{formatPct(token.ladder.gainFromBasePct)}</span> from base ·
+                        <span className="text-muted-foreground"> {formatPct(token.ladder.drawdownPct)}</span> off high
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div className="text-sm text-neutral-500">
-                  {formatPrice(token.ladder.currentPrice)} · +
-                  {formatPct(token.ladder.gainFromBasePct)} from base ·{" "}
-                  {formatPct(token.ladder.drawdownPct)} off high
+
+                <div className="border-t border-border/60 bg-muted/15 px-4 py-3 md:px-5 space-y-4">
+                  {token.ladder.sellRungs.some((r) => r.isEligible) && (
+                    <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-4">
+                      <div className="text-[10px] font-mono font-semibold uppercase tracking-wider text-destructive mb-3">
+                        Sell rungs eligible
+                      </div>
+                      <ul className="space-y-2 text-sm text-foreground">
+                        {token.ladder.sellRungs
+                          .filter((r) => r.isEligible)
+                          .map((r) => (
+                            <li key={r.id} className="flex justify-between items-center bg-background/50 rounded-lg p-3 border border-border/50">
+                              <span className="text-muted-foreground">
+                                <strong className="text-foreground">+{r.pct}%</strong> ({formatPrice(r.triggerPrice)}) — sell {r.sellPortionPct}% of base
+                              </span>
+                              <span className="font-mono text-foreground font-medium">≈ {formatQty(r.suggestedSellQty)} {token.symbol}</span>
+                            </li>
+                          ))}
+                      </ul>
+                      <div className="mt-4 flex justify-end">
+                        <Link
+                          href={`/transactions?tokenId=${token.id}&type=SELL`}
+                          className="inline-flex items-center justify-center rounded-md bg-destructive text-destructive-foreground px-4 py-2 text-sm font-medium hover:bg-destructive/90 transition-colors"
+                        >
+                          Log Sell
+                        </Link>
+                      </div>
+                    </div>
+                  )}
+
+                  {token.ladder.rebuyRungs.some((r) => r.isEligible) && (
+                    <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4">
+                      <div className="text-[10px] font-mono font-semibold uppercase tracking-wider text-emerald-500 mb-3">
+                        Rebuy rungs eligible
+                      </div>
+                      <ul className="space-y-2 text-sm text-foreground">
+                        {token.ladder.rebuyRungs
+                          .filter((r) => r.isEligible)
+                          .map((r) => (
+                            <li key={r.id} className="flex justify-between items-center bg-background/50 rounded-lg p-3 border border-border/50">
+                              <span className="text-muted-foreground">
+                                <strong className="text-foreground">-{r.pct}%</strong> ({formatPrice(r.triggerPrice)}) — deploy {r.deployPct}% of contribs
+                              </span>
+                              <span className="font-mono text-foreground font-medium">{formatUsd(r.rawDeployUsd)}</span>
+                            </li>
+                          ))}
+                      </ul>
+                      <div className="mt-3 flex items-center justify-between border-t border-emerald-500/20 pt-3 text-sm font-medium text-foreground">
+                        <span className="text-muted-foreground text-xs uppercase tracking-wider font-mono">Suggested deploy (capped at Cash Bucket)</span>
+                        <span className="text-emerald-400 text-lg font-mono">
+                          {formatUsd(token.ladder.suggestedRebuyDeployUsd)}
+                        </span>
+                      </div>
+                      <div className="mt-4 flex justify-end">
+                        <Link
+                          href={`/transactions?tokenId=${token.id}&type=BUY`}
+                          className="inline-flex items-center justify-center rounded-md bg-emerald-600 text-primary-foreground px-4 py-2 text-sm font-medium hover:bg-emerald-700 transition-colors"
+                        >
+                          Log Buy
+                        </Link>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
+            ))}
+          </div>
+        )}
+      </section>
 
-              {token.ladder.sellRungs.some((r) => r.isEligible) && (
-                <div className="mt-3 rounded-md bg-red-50 p-3">
-                  <div className="text-xs font-semibold uppercase tracking-wide text-red-700">
-                    Sell rungs eligible
-                  </div>
-                  <ul className="mt-2 space-y-1 text-sm text-red-900">
-                    {token.ladder.sellRungs
-                      .filter((r) => r.isEligible)
-                      .map((r) => (
-                        <li key={r.id} className="flex justify-between">
-                          <span>
-                            +{r.pct}% ({formatPrice(r.triggerPrice)}) — sell {r.sellPortionPct}%
-                            of base holdings
-                          </span>
-                          <span className="tabular-nums">≈ {formatQty(r.suggestedSellQty)}</span>
-                        </li>
-                      ))}
-                  </ul>
-                  <Link
-                    href={`/transactions?tokenId=${token.id}&type=SELL`}
-                    className="mt-3 inline-block rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700"
-                  >
-                    Log Sell
-                  </Link>
-                </div>
-              )}
+      <section className="space-y-4">
+        <div className="flex items-end justify-between border-b border-border/60 pb-3">
+          <div>
+            <div className="flex items-center gap-3">
+              <span className="font-mono text-xs text-muted-foreground">02</span>
+              <h2 className="text-2xl font-display font-medium text-foreground">Watching</h2>
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground">Within 10% of the next untriggered rung.</p>
+          </div>
+          <div className="flex items-center justify-center rounded-full bg-secondary text-secondary-foreground text-xs font-mono px-2 py-0.5">
+            {watching.length}
+          </div>
+        </div>
 
-              {token.ladder.rebuyRungs.some((r) => r.isEligible) && (
-                <div className="mt-3 rounded-md bg-green-50 p-3">
-                  <div className="text-xs font-semibold uppercase tracking-wide text-green-700">
-                    Rebuy rungs eligible
+        {watching.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-border bg-card/50 p-8 text-center text-sm text-muted-foreground">
+            No tokens are within 10% of a target right now.
+          </div>
+        ) : (
+          <div className="overflow-hidden rounded-2xl border border-border bg-card">
+            <div className="divide-y divide-border/50">
+              {watching.map((token) => (
+                <div key={token.id} className="flex flex-col sm:flex-row justify-between sm:items-center p-4 hover:bg-muted/30 transition-colors gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary/80 to-indigo-600/80 text-[10px] font-bold text-white ring-1 ring-white/10">
+                      {token.symbol.slice(0, 2)}
+                    </div>
+                    <div>
+                      <Link href={`/tokens/${token.id}`} className="font-medium text-foreground hover:underline">
+                        {token.symbol}
+                      </Link>
+                      <span className="ml-2 text-xs text-muted-foreground">{token.name}</span>
+                    </div>
                   </div>
-                  <ul className="mt-2 space-y-1 text-sm text-green-900">
-                    {token.ladder.rebuyRungs
-                      .filter((r) => r.isEligible)
-                      .map((r) => (
-                        <li key={r.id} className="flex justify-between">
-                          <span>
-                            -{r.pct}% ({formatPrice(r.triggerPrice)}) — deploy {r.deployPct}% of
-                            contributions
-                          </span>
-                          <span className="tabular-nums">{formatUsd(r.rawDeployUsd)}</span>
-                        </li>
-                      ))}
-                  </ul>
-                  <div className="mt-2 flex items-center justify-between border-t border-green-200 pt-2 text-sm font-medium text-green-900">
-                    <span>Suggested deploy (capped at Cash Bucket)</span>
-                    <span className="tabular-nums">
-                      {formatUsd(token.ladder.suggestedRebuyDeployUsd)}
+                  <div className="text-sm text-muted-foreground flex items-center gap-3 bg-background/50 rounded-lg px-3 py-1.5 border border-border/40">
+                    <span className="text-foreground font-mono">{formatPrice(token.ladder.currentPrice)}</span>
+                    <span className="w-px h-3 bg-border" />
+                    <span className={token.ladder.gainFromBasePct >= 0 ? "text-emerald-500" : "text-destructive"}>
+                      {token.ladder.gainFromBasePct >= 0 ? "+" : ""}{formatPct(token.ladder.gainFromBasePct)} base
+                    </span>
+                    <span className="w-px h-3 bg-border" />
+                    <span className="text-muted-foreground">
+                      {formatPct(token.ladder.drawdownPct)} high
                     </span>
                   </div>
-                  <Link
-                    href={`/transactions?tokenId=${token.id}&type=BUY`}
-                    className="mt-3 inline-block rounded-md bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700"
-                  >
-                    Log Buy
-                  </Link>
                 </div>
-              )}
+              ))}
             </div>
-          ))}
-        </div>
-      )}
-
-      {watching.length > 0 && (
-        <div>
-          <h2 className="text-sm font-semibold text-neutral-700">Watching</h2>
-          <p className="mt-1 text-xs text-neutral-500">
-            Within 10% of the next untriggered rung, in either direction.
-          </p>
-          <ul className="mt-2 divide-y divide-neutral-100 rounded-lg border border-neutral-200 bg-white">
-            {watching.map((token) => (
-              <li key={token.id} className="flex justify-between px-4 py-2 text-sm">
-                <Link href={`/tokens/${token.id}`} className="font-medium hover:underline">
-                  {token.symbol}
-                </Link>
-                <span className="text-neutral-500">
-                  {formatPrice(token.ladder.currentPrice)} · +
-                  {formatPct(token.ladder.gainFromBasePct)} from base ·{" "}
-                  {formatPct(token.ladder.drawdownPct)} off high
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+          </div>
+        )}
+      </section>
     </div>
   );
 }
