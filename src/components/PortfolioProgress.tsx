@@ -39,9 +39,19 @@ const TIMEFRAME_DAYS: Record<Timeframe, number | null> = {
 export default function PortfolioProgress({
   snapshots,
   tokens,
+  mode = "total",
 }: {
   snapshots: SnapshotPoint[];
   tokens: TokenOption[];
+  /**
+   * "total" (default): the "All portfolio" line uses the snapshot's stored
+   * totalValueUsd (full net worth — holdings + Cash Bucket + pool). "sum-
+   * tokens": the "All portfolio" line instead sums each of `tokens`' own
+   * perToken value — used for the per-asset-type (Crypto/Stock) dashboard
+   * views, since there's no historical per-asset-type net-worth figure to
+   * fall back on, only per-token holdings value.
+   */
+  mode?: "total" | "sum-tokens";
 }) {
   const [timeframe, setTimeframe] = useState<Timeframe>("all");
   const [selectedTokenId, setSelectedTokenId] = useState<string>("all");
@@ -64,26 +74,35 @@ export default function PortfolioProgress({
       : 0;
     const cutoff = days ? latestTs - days * 24 * 60 * 60 * 1000 : -Infinity;
 
-    // A token only has real history from the point it was first snapshotted
-    // onward — treating earlier gaps as $0 would draw a fake "always worth
-    // nothing" flat line for anything added after the portfolio started.
+    // A token (or, in sum-tokens mode, the whole filtered set) only has real
+    // history from the point it was first snapshotted onward — treating
+    // earlier gaps as $0 would draw a fake "always worth nothing" flat line.
     const relevant =
-      selectedTokenId === "all"
-        ? snapshots
-        : snapshots.filter((s) => selectedTokenId in s.perToken);
+      selectedTokenId !== "all"
+        ? snapshots.filter((s) => selectedTokenId in s.perToken)
+        : mode === "total"
+          ? snapshots
+          : snapshots.filter((s) => tokens.some((t) => t.id in s.perToken));
 
     return relevant
       .filter((s) => new Date(s.capturedAt).getTime() >= cutoff)
       .map((s) => ({
         date: includeTimeInLabel ? formatShortDateTime(s.capturedAt) : formatShortDate(s.capturedAt),
-        value: selectedTokenId === "all" ? s.totalValueUsd : s.perToken[selectedTokenId],
+        value:
+          selectedTokenId !== "all"
+            ? s.perToken[selectedTokenId]
+            : mode === "total"
+              ? s.totalValueUsd
+              : tokens.reduce((sum, t) => sum + (s.perToken[t.id] ?? 0), 0),
       }));
-  }, [snapshots, timeframe, selectedTokenId, includeTimeInLabel]);
+  }, [snapshots, timeframe, selectedTokenId, includeTimeInLabel, mode, tokens]);
 
   const hasAnyHistory =
-    selectedTokenId === "all"
-      ? snapshots.length > 0
-      : snapshots.some((s) => selectedTokenId in s.perToken);
+    selectedTokenId !== "all"
+      ? snapshots.some((s) => selectedTokenId in s.perToken)
+      : mode === "total"
+        ? snapshots.length > 0
+        : snapshots.some((s) => tokens.some((t) => t.id in s.perToken));
 
   const startingValue = filtered[0]?.value ?? 0;
   const latestValue = filtered[filtered.length - 1]?.value ?? 0;
@@ -162,7 +181,11 @@ export default function PortfolioProgress({
             <div className="flex h-full flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-border/60 text-center">
               <p className="text-sm text-muted-foreground">
                 {!hasAnyHistory
-                  ? `${selectedToken ? selectedToken.symbol : "This token"} was added after the last price check.`
+                  ? selectedToken
+                    ? `${selectedToken.symbol} was added after the last price check.`
+                    : mode === "sum-tokens"
+                      ? "Nothing here yet — add one to start tracking its progress."
+                      : "This token was added after the last price check."
                   : filtered.length === 0
                     ? "No snapshots in this range yet."
                     : "Only one check so far."}

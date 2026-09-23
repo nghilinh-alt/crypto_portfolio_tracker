@@ -11,6 +11,7 @@ export type TokenCard = {
   id: string;
   symbol: string;
   name: string;
+  assetType: "CRYPTO" | "STOCK";
   categoryName: string | null;
   iconUrl: string | null;
   currentPrice: number;
@@ -40,7 +41,14 @@ function sortTokens(tokens: TokenCard[], sortKey: SortKey): TokenCard[] {
   );
 }
 
-export default function TokensList({ tokens }: { tokens: TokenCard[] }) {
+export default function TokensList({
+  tokens,
+  marketClosed = false,
+}: {
+  tokens: TokenCard[];
+  /** Stocks only trade during market hours — show a hint next to their price when the market's shut. */
+  marketClosed?: boolean;
+}) {
   const [sortKey, setSortKey] = useState<SortKey>("status");
   const sorted = sortTokens(tokens, sortKey);
 
@@ -100,6 +108,11 @@ export default function TokensList({ tokens }: { tokens: TokenCard[] }) {
                 <div className="rounded-lg border border-border/50 bg-background/50 p-3">
                   <div className="mb-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Current</div>
                   <div className="font-mono text-sm text-foreground">{formatPrice(token.currentPrice)}</div>
+                  {token.assetType === "STOCK" && marketClosed && (
+                    <div className="mt-1 inline-flex items-center rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-mono uppercase tracking-wider text-muted-foreground">
+                      Market closed
+                    </div>
+                  )}
                 </div>
                 <div className="rounded-lg border border-border/50 bg-background/50 p-3">
                   <div className="mb-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Recent High</div>

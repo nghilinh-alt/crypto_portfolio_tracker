@@ -34,6 +34,7 @@ export default async function TokensPage() {
             id: token.id,
             symbol: token.symbol,
             name: token.name,
+            assetType: token.assetType,
             categoryName: token.category?.name ?? null,
             iconUrl: token.iconUrl,
             currentPrice: token.currentPrice,

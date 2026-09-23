@@ -11,6 +11,7 @@ import TokenAvatar from "@/components/TokenAvatar";
 import ApplyCategoryTemplate from "@/components/ApplyCategoryTemplate";
 import CashBucketActions from "@/components/CashBucketActions";
 import { formatUsd, formatPrice, formatPct, formatQty, formatDate } from "@/lib/format";
+import { isUsMarketOpen } from "@/lib/marketHours";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +33,7 @@ export default async function TokenDetailPage({
   if (!token) notFound();
 
   const { ladder } = token;
+  const marketClosed = token.assetType === "STOCK" && !isUsMarketOpen();
 
   return (
     <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -58,7 +60,13 @@ export default async function TokenDetailPage({
       </header>
 
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-        <StatCard label="Current Price" value={formatPrice(ladder.currentPrice)} sub={`Checked ${formatDate(token.lastPriceUpdate)}`} />
+        <StatCard label="Current Price" value={formatPrice(ladder.currentPrice)} sub={`Checked ${formatDate(token.lastPriceUpdate)}`}>
+          {marketClosed && (
+            <span className="mt-2 inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
+              Market closed
+            </span>
+          )}
+        </StatCard>
         <StatCard
           label="Holdings Value"
           value={formatUsd(ladder.holdingsValueUsd)}

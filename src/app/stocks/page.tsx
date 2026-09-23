@@ -1,18 +1,27 @@
 import { getAllTokensWithLadder, getCategories } from "@/lib/data";
 import AddStockForm from "@/components/AddStockForm";
 import TokensList from "@/components/TokensList";
+import { isUsMarketOpen } from "@/lib/marketHours";
 
 export const dynamic = "force-dynamic";
 
 export default async function StocksPage() {
   const [allTokens, categories] = await Promise.all([getAllTokensWithLadder(), getCategories()]);
   const stocks = allTokens.filter((t) => t.assetType === "STOCK");
+  const marketClosed = !isUsMarketOpen();
 
   return (
     <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <header className="flex flex-col gap-5 border-b border-border pb-6 thin-rule md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-4xl font-display font-semibold tracking-tight md:text-5xl text-foreground">Stocks</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-4xl font-display font-semibold tracking-tight md:text-5xl text-foreground">Stocks</h1>
+            {marketClosed && (
+              <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-1 text-xs font-mono uppercase tracking-wider text-muted-foreground">
+                Market closed
+              </span>
+            )}
+          </div>
           <p className="mt-2 text-sm text-muted-foreground">
             Manage the stocks tracked by the sell &amp; rebuy ladders.
           </p>
@@ -34,6 +43,7 @@ export default async function StocksPage() {
             id: token.id,
             symbol: token.symbol,
             name: token.name,
+            assetType: token.assetType,
             categoryName: token.category?.name ?? null,
             iconUrl: token.iconUrl,
             currentPrice: token.currentPrice,
@@ -42,6 +52,7 @@ export default async function StocksPage() {
             holdingsValueUsd: token.ladder.holdingsValueUsd,
             status: token.ladder.status,
           }))}
+          marketClosed={marketClosed}
         />
       )}
     </div>
