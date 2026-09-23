@@ -9,7 +9,10 @@ export async function GET(_request: Request, { params }: Ctx) {
   const { id } = await params;
   const category = await prisma.category.findUnique({
     where: { id },
-    include: { rungs: { orderBy: { order: "asc" } } },
+    include: {
+      rungs: { orderBy: { order: "asc" } },
+      rebuyRungs: { orderBy: { order: "asc" } },
+    },
   });
   if (!category) return notFound("Category");
   return NextResponse.json(category);

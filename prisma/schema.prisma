@@ -36,20 +36,20 @@ enum PortfolioCashDirection {
   OUT // pool cash was assigned into a token's cash bucket
 }
 
-// A reusable sell-ladder template (e.g. "Core", "Growth", "Harvest") that
-// can be applied to any token — replacing the old hardcoded
-// SELL_LADDER_TEMPLATES constant so new categories don't require a code
-// change. Applying a category to a token COPIES its rungs onto that token
-// at that moment; editing the category afterward does not retroactively
-// change tokens that already applied it.
+// A reusable sell + rebuy ladder template (e.g. "Core", "Growth",
+// "Harvest") that can be applied to any token. Applying a category to a
+// token COPIES both rung sets onto that token at that moment; editing the
+// category afterward does not retroactively change tokens that already
+// applied it.
 model Category {
   id        String   @id @default(cuid())
   name      String   @unique
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  rungs  CategorySellRung[]
-  tokens Token[]
+  rungs      CategorySellRung[]
+  rebuyRungs CategoryRebuyRung[]
+  tokens     Token[]
 }
 
 model CategorySellRung {
@@ -59,6 +59,17 @@ model CategorySellRung {
   order          Int
   pct            Float
   sellPortionPct Float
+
+  @@unique([categoryId, order])
+}
+
+model CategoryRebuyRung {
+  id         String   @id @default(cuid())
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  order      Int
+  pct        Float
+  deployPct  Float
 
   @@unique([categoryId, order])
 }

@@ -47,6 +47,9 @@ async function main() {
         rungs: {
           create: template.map((r, i) => ({ order: i + 1, pct: r.pct, sellPortionPct: r.sellPortionPct })),
         },
+        rebuyRungs: {
+          create: DEFAULT_REBUY_RUNGS.map((r) => ({ order: r.order, pct: r.pct, deployPct: r.deployPct })),
+        },
       },
     });
     categoryIds.set(name, created.id);

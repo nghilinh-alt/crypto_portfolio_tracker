@@ -156,6 +156,16 @@ export const updateCategoryRungSchema = z.object({
   sellPortionPct: z.number().positive().max(100).optional(),
 });
 
+export const createCategoryRebuyRungSchema = z.object({
+  pct: z.number().positive(),
+  deployPct: z.number().positive().max(100),
+});
+
+export const updateCategoryRebuyRungSchema = z.object({
+  pct: z.number().positive().optional(),
+  deployPct: z.number().positive().max(100).optional(),
+});
+
 export const applyCategorySchema = z.object({
   categoryId: z.string().trim().min(1),
 });

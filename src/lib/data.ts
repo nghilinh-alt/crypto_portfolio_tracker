@@ -55,7 +55,11 @@ export async function getAllTokensWithLadder() {
 
 export async function getCategories() {
   return prisma.category.findMany({
-    include: { rungs: { orderBy: { order: "asc" } }, _count: { select: { tokens: true } } },
+    include: {
+      rungs: { orderBy: { order: "asc" } },
+      rebuyRungs: { orderBy: { order: "asc" } },
+      _count: { select: { tokens: true } },
+    },
     orderBy: { name: "asc" },
   });
 }

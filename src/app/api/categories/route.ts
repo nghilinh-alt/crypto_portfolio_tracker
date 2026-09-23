@@ -5,7 +5,11 @@ import { zodErrorResponse } from "@/lib/apiHelpers";
 
 export async function GET() {
   const categories = await prisma.category.findMany({
-    include: { rungs: { orderBy: { order: "asc" } }, _count: { select: { tokens: true } } },
+    include: {
+      rungs: { orderBy: { order: "asc" } },
+      rebuyRungs: { orderBy: { order: "asc" } },
+      _count: { select: { tokens: true } },
+    },
     orderBy: { name: "asc" },
   });
   return NextResponse.json(categories);

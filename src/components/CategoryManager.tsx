@@ -7,6 +7,7 @@ export type CategoryData = {
   id: string;
   name: string;
   rungs: Array<{ id: string; order: number; pct: number; sellPortionPct: number }>;
+  rebuyRungs: Array<{ id: string; order: number; pct: number; deployPct: number }>;
   _count: { tokens: number };
 };
 
@@ -126,7 +127,7 @@ function CategoryCard({
   async function deleteCategory() {
     const warning =
       category._count.tokens > 0
-        ? `Delete "${category.name}"? ${category._count.tokens} token(s) using it will become uncategorized — their own sell rungs are untouched.`
+        ? `Delete "${category.name}"? ${category._count.tokens} token(s) using it will become uncategorized — their own rungs are untouched.`
         : `Delete "${category.name}"?`;
     if (!window.confirm(warning)) return;
     setBusy(true);
@@ -139,7 +140,7 @@ function CategoryCard({
   }
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-5 space-y-4">
+    <div className="rounded-2xl border border-border bg-card p-5 space-y-5">
       <div className="flex items-start justify-between gap-3">
         <input
           value={name}
@@ -161,35 +162,81 @@ function CategoryCard({
         <span>Target retention {retentionPct.toFixed(1)}%</span>
       </div>
 
-      <RungList categoryId={category.id} rungs={category.rungs} onChanged={onChanged} />
+      <div>
+        <div className="mb-1 text-xs font-medium text-foreground">Sell Ladder</div>
+        <RungTable
+          kind="sell"
+          categoryId={category.id}
+          portionLabel="Sell %"
+          portionField="sellPortionPct"
+          sign="+"
+          pctPlaceholder="Gain %"
+          rungs={category.rungs.map((r) => ({ id: r.id, order: r.order, pct: r.pct, portionPct: r.sellPortionPct }))}
+          onChanged={onChanged}
+        />
+      </div>
+
+      <div>
+        <div className="mb-1 text-xs font-medium text-foreground">Rebuy Ladder</div>
+        <RungTable
+          kind="rebuy"
+          categoryId={category.id}
+          portionLabel="Deploy %"
+          portionField="deployPct"
+          sign="-"
+          pctPlaceholder="Drop %"
+          rungs={category.rebuyRungs.map((r) => ({ id: r.id, order: r.order, pct: r.pct, portionPct: r.deployPct }))}
+          onChanged={onChanged}
+        />
+      </div>
     </div>
   );
 }
 
-function RungList({
+type NormalizedRung = { id: string; order: number; pct: number; portionPct: number };
+type Kind = "sell" | "rebuy";
+
+function endpointBase(kind: Kind, categoryId: string) {
+  return kind === "sell" ? `/api/categories/${categoryId}/rungs` : `/api/categories/${categoryId}/rebuy-rungs`;
+}
+function rungEndpointBase(kind: Kind) {
+  return kind === "sell" ? "/api/category-rungs" : "/api/category-rebuy-rungs";
+}
+
+function RungTable({
+  kind,
   categoryId,
   rungs,
+  portionLabel,
+  portionField,
+  sign,
+  pctPlaceholder,
   onChanged,
 }: {
+  kind: Kind;
   categoryId: string;
-  rungs: CategoryData["rungs"];
+  rungs: NormalizedRung[];
+  portionLabel: string;
+  portionField: string;
+  sign: "+" | "-";
+  pctPlaceholder: string;
   onChanged: () => void;
 }) {
   const [pct, setPct] = useState("");
-  const [sellPortionPct, setSellPortionPct] = useState("");
+  const [portionPct, setPortionPct] = useState("");
   const [busy, setBusy] = useState(false);
 
   async function addRung() {
-    if (!pct || !sellPortionPct) return;
+    if (!pct || !portionPct) return;
     setBusy(true);
     try {
-      await fetch(`/api/categories/${categoryId}/rungs`, {
+      await fetch(endpointBase(kind, categoryId), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pct: Number(pct), sellPortionPct: Number(sellPortionPct) }),
+        body: JSON.stringify({ pct: Number(pct), [portionField]: Number(portionPct) }),
       });
       setPct("");
-      setSellPortionPct("");
+      setPortionPct("");
       onChanged();
     } finally {
       setBusy(false);
@@ -201,33 +248,33 @@ function RungList({
       <table className="w-full text-sm">
         <thead className="text-left text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
           <tr>
-            <th className="pb-1 font-normal">Gain %</th>
-            <th className="pb-1 font-normal">Sell %</th>
+            <th className="pb-1 font-normal">{pctPlaceholder}</th>
+            <th className="pb-1 font-normal">{portionLabel}</th>
             <th className="pb-1" />
           </tr>
         </thead>
         <tbody className="divide-y divide-border/50">
           {rungs.map((r) => (
-            <RungRow key={r.id} rung={r} onChanged={onChanged} />
+            <RungRow key={r.id} kind={kind} rung={r} portionField={portionField} sign={sign} onChanged={onChanged} />
           ))}
         </tbody>
       </table>
       <div className="flex items-center gap-2 pt-1">
-        <span className="text-muted-foreground">+</span>
+        <span className="text-muted-foreground">{sign}</span>
         <input
           type="number"
           step="any"
           value={pct}
           onChange={(e) => setPct(e.target.value)}
-          placeholder="Gain %"
+          placeholder={pctPlaceholder}
           className="w-20 rounded border border-input bg-background px-2 py-1 text-sm"
         />
         <input
           type="number"
           step="any"
-          value={sellPortionPct}
-          onChange={(e) => setSellPortionPct(e.target.value)}
-          placeholder="Sell %"
+          value={portionPct}
+          onChange={(e) => setPortionPct(e.target.value)}
+          placeholder={portionLabel}
           className="w-20 rounded border border-input bg-background px-2 py-1 text-sm"
         />
         <button
@@ -243,24 +290,30 @@ function RungList({
 }
 
 function RungRow({
+  kind,
   rung,
+  portionField,
+  sign,
   onChanged,
 }: {
-  rung: CategoryData["rungs"][number];
+  kind: Kind;
+  rung: NormalizedRung;
+  portionField: string;
+  sign: "+" | "-";
   onChanged: () => void;
 }) {
   const [pct, setPct] = useState(String(rung.pct));
-  const [sellPortionPct, setSellPortionPct] = useState(String(rung.sellPortionPct));
+  const [portionPct, setPortionPct] = useState(String(rung.portionPct));
   const [busy, setBusy] = useState(false);
-  const dirty = Number(pct) !== rung.pct || Number(sellPortionPct) !== rung.sellPortionPct;
+  const dirty = Number(pct) !== rung.pct || Number(portionPct) !== rung.portionPct;
 
   async function save() {
     setBusy(true);
     try {
-      await fetch(`/api/category-rungs/${rung.id}`, {
+      await fetch(`${rungEndpointBase(kind)}/${rung.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pct: Number(pct), sellPortionPct: Number(sellPortionPct) }),
+        body: JSON.stringify({ pct: Number(pct), [portionField]: Number(portionPct) }),
       });
       onChanged();
     } finally {
@@ -271,7 +324,7 @@ function RungRow({
   async function remove() {
     setBusy(true);
     try {
-      await fetch(`/api/category-rungs/${rung.id}`, { method: "DELETE" });
+      await fetch(`${rungEndpointBase(kind)}/${rung.id}`, { method: "DELETE" });
       onChanged();
     } finally {
       setBusy(false);
@@ -282,7 +335,7 @@ function RungRow({
     <tr>
       <td className="py-1">
         <div className="flex items-center gap-1">
-          <span className="text-muted-foreground">+</span>
+          <span className="text-muted-foreground">{sign}</span>
           <input
             type="number"
             step="any"
@@ -296,8 +349,8 @@ function RungRow({
         <input
           type="number"
           step="any"
-          value={sellPortionPct}
-          onChange={(e) => setSellPortionPct(e.target.value)}
+          value={portionPct}
+          onChange={(e) => setPortionPct(e.target.value)}
           className="w-16 rounded border border-input bg-background px-1.5 py-1 text-sm"
         />
       </td>

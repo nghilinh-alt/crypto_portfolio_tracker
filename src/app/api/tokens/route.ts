@@ -25,22 +25,29 @@ export async function POST(request: Request) {
     );
   }
 
-  let templateRungs: Array<{ pct: number; sellPortionPct: number }> = [];
+  let templateSellRungs: Array<{ pct: number; sellPortionPct: number }> = [];
+  let templateRebuyRungs: Array<{ pct: number; deployPct: number }> = [];
   if (input.categoryId) {
     const category = await prisma.category.findUnique({
       where: { id: input.categoryId },
-      include: { rungs: { orderBy: { order: "asc" } } },
+      include: {
+        rungs: { orderBy: { order: "asc" } },
+        rebuyRungs: { orderBy: { order: "asc" } },
+      },
     });
     if (!category) return notFound("Category");
-    templateRungs = category.rungs;
+    templateSellRungs = category.rungs;
+    templateRebuyRungs = category.rebuyRungs;
   }
 
-  const sellRungs = (input.sellRungs ?? templateRungs).map((r, i) => ({
+  const sellRungs = (input.sellRungs ?? templateSellRungs).map((r, i) => ({
     order: i + 1,
     pct: r.pct,
     sellPortionPct: r.sellPortionPct,
   }));
-  const rebuyRungs = (input.rebuyRungs ?? DEFAULT_REBUY_RUNGS).map((r, i) => ({
+  const rebuyRungs = (
+    input.rebuyRungs ?? (templateRebuyRungs.length > 0 ? templateRebuyRungs : DEFAULT_REBUY_RUNGS)
+  ).map((r, i) => ({
     order: i + 1,
     pct: r.pct,
     deployPct: "deployPct" in r ? r.deployPct : 0,
