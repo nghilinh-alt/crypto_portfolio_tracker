@@ -42,22 +42,44 @@ export async function POST(request: Request) {
 
   const iconUrl = input.coingeckoId ? await fetchTokenIconUrl(input.coingeckoId) : null;
 
-  const token = await prisma.token.create({
-    data: {
-      symbol: input.symbol,
-      name: input.name,
-      category: input.category ?? null,
-      coingeckoId: input.coingeckoId ?? null,
-      bybitSymbol: input.bybitSymbol ?? null,
-      iconUrl,
-      recentHigh: input.recentHigh,
-      basePrice: input.basePrice,
-      baseHoldings: input.baseHoldings,
-      currentPrice: input.currentPrice,
-      sellRungs: { create: sellRungs },
-      rebuyRungs: { create: rebuyRungs },
-    },
-    include: { sellRungs: true, rebuyRungs: true },
+  const token = await prisma.$transaction(async (tx) => {
+    const created = await tx.token.create({
+      data: {
+        symbol: input.symbol,
+        name: input.name,
+        category: input.category ?? null,
+        coingeckoId: input.coingeckoId ?? null,
+        bybitSymbol: input.bybitSymbol ?? null,
+        iconUrl,
+        recentHigh: input.recentHigh,
+        basePrice: input.basePrice,
+        baseHoldings: input.baseHoldings,
+        currentPrice: input.currentPrice,
+        sellRungs: { create: sellRungs },
+        rebuyRungs: { create: rebuyRungs },
+      },
+      include: { sellRungs: true, rebuyRungs: true },
+    });
+
+    // baseHoldings on its own doesn't put anything in the transaction log,
+    // which is the only source Holdings Value is derived from — without
+    // this, a token created with existing holdings would show $0 value
+    // until someone thought to log a separate opening BUY by hand.
+    if (input.baseHoldings > 0 && input.basePrice > 0) {
+      await tx.transaction.create({
+        data: {
+          tokenId: created.id,
+          type: "BUY",
+          fundedBy: "EXTERNAL",
+          quantity: input.baseHoldings,
+          pricePerUnit: input.basePrice,
+          usdAmount: input.baseHoldings * input.basePrice,
+          note: "Opening position",
+        },
+      });
+    }
+
+    return created;
   });
 
   return NextResponse.json(token, { status: 201 });
