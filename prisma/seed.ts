@@ -30,6 +30,29 @@ const TOKENS: Array<{
 ];
 
 async function main() {
+  // Categories are DB-backed now (see /categories) — find-or-create the
+  // three named here so a fresh import still gets real Category rows
+  // instead of relying on the old hardcoded constant.
+  const categoryIds = new Map<string, string>();
+  for (const name of new Set(TOKENS.map((t) => t.category))) {
+    const existing = await prisma.category.findUnique({ where: { name } });
+    if (existing) {
+      categoryIds.set(name, existing.id);
+      continue;
+    }
+    const template = SELL_LADDER_TEMPLATES[name];
+    const created = await prisma.category.create({
+      data: {
+        name,
+        rungs: {
+          create: template.map((r, i) => ({ order: i + 1, pct: r.pct, sellPortionPct: r.sellPortionPct })),
+        },
+      },
+    });
+    categoryIds.set(name, created.id);
+    console.log(`Created Category ${name}`);
+  }
+
   const targets = TOKENS.map((t) => ({
     key: t.symbol,
     symbol: t.symbol,
@@ -60,7 +83,7 @@ async function main() {
       data: {
         symbol: t.symbol,
         name: t.name,
-        category: t.category,
+        categoryId: categoryIds.get(t.category),
         coingeckoId: t.coingeckoId,
         bybitSymbol: t.bybitSymbol,
         iconUrl,

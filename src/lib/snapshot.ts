@@ -1,5 +1,6 @@
 import { prisma } from "./prisma";
 import { getAllTokensWithLadder } from "./data";
+import { getPortfolioCashPoolBalance } from "./cashPool";
 
 /**
  * Records one PortfolioSnapshot (+ one TokenSnapshot per token) capturing
@@ -11,11 +12,11 @@ export async function capturePortfolioSnapshot() {
   const tokens = await getAllTokensWithLadder();
   if (tokens.length === 0) return null;
 
-  const totalValueUsd = tokens.reduce(
-    (sum, t) => sum + t.ladder.holdingsValueUsd + t.ladder.cashBucket,
-    0
-  );
-  const cashBucketUsd = tokens.reduce((sum, t) => sum + t.ladder.cashBucket, 0);
+  const poolBalance = await getPortfolioCashPoolBalance();
+  const totalValueUsd =
+    tokens.reduce((sum, t) => sum + t.ladder.holdingsValueUsd + t.ladder.cashBucket, 0) +
+    poolBalance;
+  const cashBucketUsd = tokens.reduce((sum, t) => sum + t.ladder.cashBucket, 0) + poolBalance;
 
   return prisma.portfolioSnapshot.create({
     data: {

@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAllTokensWithLadder } from "@/lib/data";
 import { createTokenSchema } from "@/lib/validation";
-import { zodErrorResponse } from "@/lib/apiHelpers";
-import { DEFAULT_REBUY_RUNGS, SELL_LADDER_TEMPLATES } from "@/lib/ladder";
+import { zodErrorResponse, notFound } from "@/lib/apiHelpers";
+import { DEFAULT_REBUY_RUNGS } from "@/lib/ladder";
 import { fetchTokenIconUrl } from "@/lib/tokenIcon";
 
 export async function GET() {
@@ -25,10 +25,16 @@ export async function POST(request: Request) {
     );
   }
 
-  const templateRungs =
-    input.category && input.category in SELL_LADDER_TEMPLATES
-      ? SELL_LADDER_TEMPLATES[input.category as keyof typeof SELL_LADDER_TEMPLATES]
-      : [];
+  let templateRungs: Array<{ pct: number; sellPortionPct: number }> = [];
+  if (input.categoryId) {
+    const category = await prisma.category.findUnique({
+      where: { id: input.categoryId },
+      include: { rungs: { orderBy: { order: "asc" } } },
+    });
+    if (!category) return notFound("Category");
+    templateRungs = category.rungs;
+  }
+
   const sellRungs = (input.sellRungs ?? templateRungs).map((r, i) => ({
     order: i + 1,
     pct: r.pct,
@@ -47,7 +53,7 @@ export async function POST(request: Request) {
       data: {
         symbol: input.symbol,
         name: input.name,
-        category: input.category ?? null,
+        categoryId: input.categoryId ?? null,
         coingeckoId: input.coingeckoId ?? null,
         bybitSymbol: input.bybitSymbol ?? null,
         iconUrl,

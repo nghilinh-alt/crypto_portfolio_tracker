@@ -6,7 +6,8 @@ import { useRouter } from "next/navigation";
 export default function EditTokenForm({
   tokenId,
   name,
-  category,
+  categoryId,
+  categories,
   coingeckoId,
   bybitSymbol,
   recentHigh,
@@ -15,7 +16,8 @@ export default function EditTokenForm({
 }: {
   tokenId: string;
   name: string;
-  category: string | null;
+  categoryId: string | null;
+  categories: Array<{ id: string; name: string }>;
   coingeckoId: string | null;
   bybitSymbol: string | null;
   recentHigh: number;
@@ -26,7 +28,7 @@ export default function EditTokenForm({
   const [open, setOpen] = useState(false);
   const [values, setValues] = useState({
     name,
-    category: category ?? "",
+    categoryId: categoryId ?? "",
     coingeckoId: coingeckoId ?? "",
     bybitSymbol: bybitSymbol ?? "",
     recentHigh: String(recentHigh),
@@ -45,7 +47,7 @@ export default function EditTokenForm({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: values.name,
-          category: values.category || null,
+          categoryId: values.categoryId || null,
           coingeckoId: values.coingeckoId || null,
           bybitSymbol: values.bybitSymbol || null,
           recentHigh: Number(values.recentHigh),
@@ -90,12 +92,21 @@ export default function EditTokenForm({
         </label>
         <label className="block space-y-1">
           <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Category</span>
-          <input
-            value={values.category}
-            onChange={(e) => setValues((v) => ({ ...v, category: e.target.value }))}
-            placeholder="Core / Growth / Harvest"
+          <select
+            value={values.categoryId}
+            onChange={(e) => setValues((v) => ({ ...v, categoryId: e.target.value }))}
             className="block w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-          />
+          >
+            <option value="">— none —</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+          <span className="text-[10px] text-muted-foreground/70">
+            just a label here — use &quot;Apply Category Template&quot; below to copy its rungs
+          </span>
         </label>
         <label className="block space-y-1">
           <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">CoinGecko ID</span>

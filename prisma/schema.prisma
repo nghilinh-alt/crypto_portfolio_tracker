@@ -31,6 +31,38 @@ enum FundSource {
   EXTERNAL
 }
 
+enum PortfolioCashDirection {
+  IN // a token's cash bucket moved into the pool
+  OUT // pool cash was assigned into a token's cash bucket
+}
+
+// A reusable sell-ladder template (e.g. "Core", "Growth", "Harvest") that
+// can be applied to any token — replacing the old hardcoded
+// SELL_LADDER_TEMPLATES constant so new categories don't require a code
+// change. Applying a category to a token COPIES its rungs onto that token
+// at that moment; editing the category afterward does not retroactively
+// change tokens that already applied it.
+model Category {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  rungs  CategorySellRung[]
+  tokens Token[]
+}
+
+model CategorySellRung {
+  id             String   @id @default(cuid())
+  categoryId     String
+  category       Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  order          Int
+  pct            Float
+  sellPortionPct Float
+
+  @@unique([categoryId, order])
+}
+
 // A tracked token. Two independent anchors drive the two ladders:
 // - recentHigh drives the REBUY ladder (falls, ratchets up only, §2).
 // - basePrice drives the SELL ladder (a fixed reference set once — sell
@@ -44,7 +76,7 @@ model Token {
   id              String    @id @default(cuid())
   symbol          String    @unique
   name            String
-  category        String? // e.g. "Core" / "Growth" / "Harvest" — informational grouping
+  categoryId      String?
   coingeckoId     String? // e.g. "bitcoin" — used by the CoinGecko price provider
   bybitSymbol     String? // e.g. "BTCUSDT" — used by the Bybit fallback provider
   iconUrl         String? // logo image URL, fetched from CoinGecko via coingeckoId
@@ -57,10 +89,12 @@ model Token {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
+  category       Category?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   sellRungs      SellRung[]
   rebuyRungs     RebuyRung[]
   transactions   Transaction[]
   tokenSnapshots TokenSnapshot[]
+  cashMovements  PortfolioCashTransaction[]
 }
 
 // Sell ladder rung. pct is the % GAIN above basePrice that triggers this
@@ -151,6 +185,25 @@ model Transaction {
   note         String?
   occurredAt   DateTime        @default(now())
   createdAt    DateTime        @default(now())
+
+  @@index([tokenId])
+}
+
+// A portfolio-wide cash pool, separate from any token's own Cash Bucket —
+// for money from a fully-exited token you're not planning to redeploy into
+// that same token again. IN = a token's cash bucket moved into the pool
+// (paired with a WITHDRAW Transaction on that token); OUT = pool cash
+// assigned into a token's cash bucket (paired with a DEPOSIT Transaction
+// on that token). Balance is always derived — Σ IN − Σ OUT — never stored.
+model PortfolioCashTransaction {
+  id         String                 @id @default(cuid())
+  direction  PortfolioCashDirection
+  amount     Float
+  tokenId    String? // the token this moved from (IN) or into (OUT); null if never tied to one
+  token      Token?                 @relation(fields: [tokenId], references: [id], onDelete: SetNull)
+  note       String?
+  occurredAt DateTime               @default(now())
+  createdAt  DateTime               @default(now())
 
   @@index([tokenId])
 }

@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { getAllTokensWithLadder, getPortfolioHistory } from "@/lib/data";
+import { getPortfolioCashPoolBalance } from "@/lib/cashPool";
 import StatusBadge from "@/components/StatusBadge";
 import PortfolioProgress from "@/components/PortfolioProgress";
+import PortfolioCashPool from "@/components/PortfolioCashPool";
 import TokenAvatar from "@/components/TokenAvatar";
 import { formatUsd, formatPrice, formatPct, formatQty } from "@/lib/format";
 
@@ -24,6 +26,7 @@ function getTokenColor(symbol: string) {
 export default async function DashboardPage() {
   const tokens = await getAllTokensWithLadder();
   const history = await getPortfolioHistory();
+  const poolBalance = await getPortfolioCashPoolBalance();
 
   const snapshotPoints = history.map((s) => ({
     capturedAt: s.capturedAt.toISOString(),
@@ -55,9 +58,20 @@ export default async function DashboardPage() {
     }
   );
 
-  const totalPortfolioValue = totals.holdingsValue + totals.cashBucket;
+  const totalPortfolioValue = totals.holdingsValue + totals.cashBucket + poolBalance;
   const gainUsd = totalPortfolioValue - totals.valueAtBase;
   const gainPct = totals.valueAtBase > 0 ? (gainUsd / totals.valueAtBase) * 100 : 0;
+
+  // Composition at a glance: how many tokens, split by risk category.
+  const categoryCounts = new Map<string, number>();
+  for (const t of tokens) {
+    const key = t.category?.name ?? "Uncategorized";
+    categoryCounts.set(key, (categoryCounts.get(key) ?? 0) + 1);
+  }
+  const categoryBreakdown = [...categoryCounts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([label, count]) => `${count} ${label}`)
+    .join(" · ");
 
   // Upcoming actions from tokens that are BUY or SELL
   const actionable = tokens.filter(t => t.ladder.status === "SELL" || t.ladder.status === "BUY");
@@ -98,6 +112,10 @@ export default async function DashboardPage() {
               <div className="text-3xl font-display font-medium text-foreground tracking-tight">{formatUsd(totals.taxReserved)}</div>
               <span className="text-xs text-muted-foreground mt-1">Ready for withholding</span>
             </div>
+            <PortfolioCashPool
+              balance={poolBalance}
+              tokens={tokens.map((t) => ({ id: t.id, symbol: t.symbol }))}
+            />
           </div>
         </div>
       )}
@@ -113,10 +131,16 @@ export default async function DashboardPage() {
 
           <div className="space-y-6">
             <div className="flex items-center justify-between pb-2 border-b border-border/50">
-              <h2 className="text-2xl font-display font-medium flex items-center gap-3">
-                <span className="text-sm font-mono text-muted-foreground">02</span>
-                Active Positions
-              </h2>
+              <div>
+                <h2 className="text-2xl font-display font-medium flex items-center gap-3">
+                  <span className="text-sm font-mono text-muted-foreground">02</span>
+                  Active Positions
+                  <span className="text-base font-normal text-muted-foreground">({tokens.length})</span>
+                </h2>
+                {categoryBreakdown && (
+                  <p className="mt-1 pl-7 text-xs text-muted-foreground">{categoryBreakdown}</p>
+                )}
+              </div>
               <Link href="/tokens" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
                 Manage all
               </Link>

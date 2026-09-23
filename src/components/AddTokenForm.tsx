@@ -3,7 +3,11 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 
-export default function AddTokenForm() {
+export default function AddTokenForm({
+  categories,
+}: {
+  categories: Array<{ id: string; name: string }>;
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -20,7 +24,7 @@ export default function AddTokenForm() {
     const payload = {
       symbol: String(form.get("symbol") ?? ""),
       name: String(form.get("name") ?? ""),
-      category: form.get("category") ? String(form.get("category")) : undefined,
+      categoryId: form.get("categoryId") ? String(form.get("categoryId")) : undefined,
       coingeckoId: form.get("coingeckoId") ? String(form.get("coingeckoId")) : undefined,
       bybitSymbol: form.get("bybitSymbol") ? String(form.get("bybitSymbol")) : undefined,
       currentPrice: priceNow,
@@ -84,16 +88,20 @@ export default function AddTokenForm() {
         <label className="block space-y-1.5">
           <span className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Category</span>
           <select
-            name="category"
+            name="categoryId"
             defaultValue=""
             className="block w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors h-10"
           >
             <option value="">— none —</option>
-            <option value="Core">Core</option>
-            <option value="Growth">Growth</option>
-            <option value="Harvest">Harvest</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
           </select>
-          <span className="text-[10px] text-muted-foreground/70">picks the sell-ladder template</span>
+          <span className="text-[10px] text-muted-foreground/70">
+            {categories.length === 0 ? "no categories yet — manage from Categories" : "picks the sell-ladder template"}
+          </span>
         </label>
         <Field
           label="CoinGecko ID"

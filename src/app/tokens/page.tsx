@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getAllTokensWithLadder } from "@/lib/data";
+import { getAllTokensWithLadder, getCategories } from "@/lib/data";
 import AddTokenForm from "@/components/AddTokenForm";
 import DeleteButton from "@/components/DeleteButton";
 import TokenAvatar from "@/components/TokenAvatar";
@@ -8,7 +8,7 @@ import { formatPrice } from "@/lib/format";
 export const dynamic = "force-dynamic";
 
 export default async function TokensPage() {
-  const tokens = await getAllTokensWithLadder();
+  const [tokens, categories] = await Promise.all([getAllTokensWithLadder(), getCategories()]);
 
   return (
     <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -20,7 +20,7 @@ export default async function TokensPage() {
           </p>
         </div>
         <div className="flex w-full md:w-auto">
-          <AddTokenForm />
+          <AddTokenForm categories={categories.map((c) => ({ id: c.id, name: c.name }))} />
         </div>
       </header>
 
@@ -47,7 +47,10 @@ export default async function TokensPage() {
                       <Link href={`/tokens/${token.id}`} className="text-lg font-display font-medium text-foreground hover:text-primary transition-colors">
                         {token.symbol}
                       </Link>
-                      <div className="text-xs text-muted-foreground">{token.name}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {token.name}
+                        {token.category && ` · ${token.category.name}`}
+                      </div>
                     </div>
                   </div>
                   <div className="flex items-center">

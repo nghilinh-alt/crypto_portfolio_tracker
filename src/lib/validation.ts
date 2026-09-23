@@ -3,7 +3,7 @@ import { z } from "zod";
 export const createTokenSchema = z.object({
   symbol: z.string().trim().min(1).max(20).toUpperCase(),
   name: z.string().trim().min(1).max(80),
-  category: z.string().trim().min(1).max(40).optional().nullable(),
+  categoryId: z.string().trim().min(1).optional().nullable(),
   coingeckoId: z.string().trim().min(1).max(80).optional().nullable(),
   bybitSymbol: z.string().trim().min(1).max(20).optional().nullable(),
   recentHigh: z.number().nonnegative().optional().default(0),
@@ -30,7 +30,7 @@ export const createTokenSchema = z.object({
 
 export const updateTokenSchema = z.object({
   name: z.string().trim().min(1).max(80).optional(),
-  category: z.string().trim().min(1).max(40).optional().nullable(),
+  categoryId: z.string().trim().min(1).optional().nullable(),
   coingeckoId: z.string().trim().min(1).max(80).optional().nullable(),
   bybitSymbol: z.string().trim().min(1).max(20).optional().nullable(),
   recentHigh: z.number().nonnegative().optional(),
@@ -129,3 +129,54 @@ export const createTransactionSchema = z
   });
 
 export type CreateTransactionInput = z.infer<typeof createTransactionSchema>;
+
+export const createCategorySchema = z.object({
+  name: z.string().trim().min(1).max(40),
+  rungs: z
+    .array(
+      z.object({
+        pct: z.number().positive(),
+        sellPortionPct: z.number().positive().max(100),
+      })
+    )
+    .optional(),
+});
+
+export const updateCategorySchema = z.object({
+  name: z.string().trim().min(1).max(40).optional(),
+});
+
+export const createCategoryRungSchema = z.object({
+  pct: z.number().positive(),
+  sellPortionPct: z.number().positive().max(100),
+});
+
+export const updateCategoryRungSchema = z.object({
+  pct: z.number().positive().optional(),
+  sellPortionPct: z.number().positive().max(100).optional(),
+});
+
+export const applyCategorySchema = z.object({
+  categoryId: z.string().trim().min(1),
+});
+
+// Direct token-to-token cash transfer — logs a WITHDRAW on the source and a
+// DEPOSIT on the destination, atomically.
+export const transferCashSchema = z.object({
+  toTokenId: z.string().trim().min(1),
+  amount: z.number().positive(),
+  note: z.string().trim().max(500).optional().nullable(),
+});
+
+// Move a token's cash bucket into the untethered portfolio pool.
+export const cashToPoolSchema = z.object({
+  amount: z.number().positive(),
+  note: z.string().trim().max(500).optional().nullable(),
+});
+
+// Assign pool cash into a specific token's cash bucket.
+export const poolToTokenSchema = z.object({
+  tokenId: z.string().trim().min(1),
+  amount: z.number().positive(),
+  note: z.string().trim().max(500).optional().nullable(),
+});

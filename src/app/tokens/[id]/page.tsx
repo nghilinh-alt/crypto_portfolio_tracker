@@ -1,11 +1,15 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getTokenWithLadder } from "@/lib/data";
+import { getTokenWithLadder, getCategories } from "@/lib/data";
+import { prisma } from "@/lib/prisma";
 import StatusBadge from "@/components/StatusBadge";
 import EditTokenForm from "@/components/EditTokenForm";
 import RungEditor from "@/components/RungEditor";
 import DeleteButton from "@/components/DeleteButton";
 import TokenAvatar from "@/components/TokenAvatar";
+import ApplyCategoryTemplate from "@/components/ApplyCategoryTemplate";
+import CashBucketActions from "@/components/CashBucketActions";
 import { formatUsd, formatPrice, formatPct, formatQty, formatDate } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +20,15 @@ export default async function TokenDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const token = await getTokenWithLadder(id);
+  const [token, categories, otherTokens] = await Promise.all([
+    getTokenWithLadder(id),
+    getCategories(),
+    prisma.token.findMany({
+      where: { NOT: { id } },
+      select: { id: true, symbol: true },
+      orderBy: { symbol: "asc" },
+    }),
+  ]);
   if (!token) notFound();
 
   const { ladder } = token;
@@ -68,7 +80,15 @@ export default async function TokenDetailPage({
           label="Cash Bucket"
           value={formatUsd(ladder.cashBucket)}
           sub={`From ${formatUsd(ladder.cashBucketContributions)}`}
-        />
+        >
+          <div className="mt-2">
+            <CashBucketActions
+              tokenId={token.id}
+              cashBucket={ladder.cashBucket}
+              otherTokens={otherTokens}
+            />
+          </div>
+        </StatCard>
         <StatCard
           label="Base Holdings"
           value={formatQty(ladder.baseHoldings)}
@@ -93,7 +113,8 @@ export default async function TokenDetailPage({
             <EditTokenForm
               tokenId={token.id}
               name={token.name}
-              category={token.category}
+              categoryId={token.categoryId}
+              categories={categories.map((c) => ({ id: c.id, name: c.name }))}
               coingeckoId={token.coingeckoId}
               bybitSymbol={token.bybitSymbol}
               recentHigh={token.recentHigh}
@@ -132,6 +153,10 @@ export default async function TokenDetailPage({
                 }))}
               />
             </div>
+            <ApplyCategoryTemplate
+              tokenId={token.id}
+              categories={categories.map((c) => ({ id: c.id, name: c.name }))}
+            />
           </section>
 
           <section className="bg-card border border-border rounded-2xl overflow-hidden flex flex-col">
@@ -236,11 +261,13 @@ function StatCard({
   value,
   sub,
   subTone = "neutral",
+  children,
 }: {
   label: string;
   value: string;
   sub?: string;
   subTone?: "positive" | "negative" | "neutral";
+  children?: ReactNode;
 }) {
   const subColor =
     subTone === "positive"
@@ -253,6 +280,7 @@ function StatCard({
       <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">{label}</div>
       <div className="mt-2 text-2xl font-display font-medium text-foreground tracking-tight">{value}</div>
       {sub && <div className={`mt-1 text-xs ${subColor}`}>{sub}</div>}
+      {children}
     </div>
   );
 }

@@ -14,6 +14,7 @@ export async function getTokenWithLadder(id: string) {
   const token = await prisma.token.findUnique({
     where: { id },
     include: {
+      category: true,
       sellRungs: { orderBy: { order: "asc" } },
       rebuyRungs: { orderBy: { order: "asc" } },
       transactions: { orderBy: { occurredAt: "desc" } },
@@ -34,6 +35,7 @@ export async function getTokenWithLadder(id: string) {
 export async function getAllTokensWithLadder() {
   const tokens = await prisma.token.findMany({
     include: {
+      category: true,
       sellRungs: { orderBy: { order: "asc" } },
       rebuyRungs: { orderBy: { order: "asc" } },
       transactions: true,
@@ -49,6 +51,13 @@ export async function getAllTokensWithLadder() {
   return withLadder.sort(
     (a, b) => STATUS_PRIORITY[a.ladder.status] - STATUS_PRIORITY[b.ladder.status]
   );
+}
+
+export async function getCategories() {
+  return prisma.category.findMany({
+    include: { rungs: { orderBy: { order: "asc" } }, _count: { select: { tokens: true } } },
+    orderBy: { name: "asc" },
+  });
 }
 
 /**

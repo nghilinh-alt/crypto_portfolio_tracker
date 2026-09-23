@@ -51,9 +51,17 @@ recalculates every trigger.
 
 ### Sell ladder: % gain above basePrice, sized against baseHoldings
 
-Sell rungs are grouped into three risk-category templates
-(`SELL_LADDER_TEMPLATES` in `src/lib/ladder.ts`), applied by setting a
-token's `category`:
+Sell rungs come from a **Category** — a reusable template you manage on the
+[`/categories`](src/app/categories/page.tsx) page (name + an ordered list of
+gain % → sell % rungs). Applying a category to a token (from the token page,
+"Apply category template") *copies* its rungs onto that token at that
+moment; editing the category afterward doesn't retroactively change tokens
+that already applied it, and a token's rungs stay independently editable
+either way. `Category`/`CategorySellRung` are real tables (see
+`prisma/schema.prisma`), not hardcoded — add as many categories as you want.
+
+The three seeded via `prisma/seed.ts` (same numbers the original 7-token
+import used):
 
 | Category | Tokens | Rungs (gain % → sell % of baseHoldings) | Retention if all fire |
 |---|---|---|---|
@@ -115,6 +123,26 @@ Rebuy rungs deploy a `%` of Contributions; the Action Centre and token page
 both show that raw per-rung amount and a total "suggested deploy" capped at
 the current net Cash Bucket, per the safeguard against over-deploying when
 several rungs trigger at once.
+
+### Moving cash out of a fully-exited token
+
+If you've sold all of a token and aren't planning to rebuy it, its leftover
+Cash Bucket has nowhere useful to go on its own (a token's rebuy ladder only
+deploys into that same token). Two ways to move it, both from the "Move
+this cash elsewhere" control under a token's Cash Bucket figure:
+
+- **Directly to another token** — logs a `WITHDRAW` on the source and a
+  `DEPOSIT` on the destination, atomically (`/api/tokens/[id]/transfer-cash`).
+  No new concept, just two paired transactions.
+- **To the Portfolio Cash Pool** — a portfolio-wide balance not tied to any
+  token (`PortfolioCashTransaction`, always derived as Σ IN − Σ OUT, shown
+  on the Dashboard). Money sits there until you explicitly assign it to a
+  token later ("Assign to a token" under the pool balance), which logs a
+  `DEPOSIT` on that token. Since the rebuy ladder is entirely token-scoped,
+  pool cash never auto-deploys anywhere — assigning it is always manual.
+
+Both paths cap the amount at the source's current balance server-side, same
+as every other cash-movement check in the app.
 
 ### Status (Dashboard / Action Centre)
 

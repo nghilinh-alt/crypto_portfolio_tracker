@@ -45,6 +45,18 @@ export function formatShortDate(value: string | Date): string {
   return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(date);
 }
 
+/** Short axis-label form with time, e.g. "Sep 22, 9:08 AM" — for chart
+ * timeframes granular enough that same-day points need disambiguating. */
+export function formatShortDateTime(value: string | Date): string {
+  const date = typeof value === "string" ? new Date(value) : value;
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(date);
+}
+
 export function formatDate(value: string | Date | null | undefined): string {
   if (!value) return "—";
   const date = typeof value === "string" ? new Date(value) : value;

@@ -10,7 +10,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { formatUsd, formatPct, formatShortDate } from "@/lib/format";
+import { formatUsd, formatPct, formatShortDate, formatShortDateTime } from "@/lib/format";
 
 export type SnapshotPoint = {
   capturedAt: string; // ISO
@@ -48,6 +48,12 @@ export default function PortfolioProgress({
 
   const selectedToken = tokens.find((t) => t.id === selectedTokenId);
 
+  // Short timeframes are granular enough that two points can share a
+  // calendar day (e.g. testing, or refreshing more than once a week) — the
+  // date-only axis label would print the same thing twice with no way to
+  // tell them apart, so those views get time-of-day in the label too.
+  const includeTimeInLabel = timeframe === "week" || timeframe === "month";
+
   const filtered = useMemo(() => {
     const days = TIMEFRAME_DAYS[timeframe];
     // Cutoff is relative to the latest snapshot, not wall-clock time — pure
@@ -57,13 +63,27 @@ export default function PortfolioProgress({
       ? Math.max(...snapshots.map((s) => new Date(s.capturedAt).getTime()))
       : 0;
     const cutoff = days ? latestTs - days * 24 * 60 * 60 * 1000 : -Infinity;
-    return snapshots
+
+    // A token only has real history from the point it was first snapshotted
+    // onward — treating earlier gaps as $0 would draw a fake "always worth
+    // nothing" flat line for anything added after the portfolio started.
+    const relevant =
+      selectedTokenId === "all"
+        ? snapshots
+        : snapshots.filter((s) => selectedTokenId in s.perToken);
+
+    return relevant
       .filter((s) => new Date(s.capturedAt).getTime() >= cutoff)
       .map((s) => ({
-        date: formatShortDate(s.capturedAt),
-        value: selectedTokenId === "all" ? s.totalValueUsd : (s.perToken[selectedTokenId] ?? 0),
+        date: includeTimeInLabel ? formatShortDateTime(s.capturedAt) : formatShortDate(s.capturedAt),
+        value: selectedTokenId === "all" ? s.totalValueUsd : s.perToken[selectedTokenId],
       }));
-  }, [snapshots, timeframe, selectedTokenId]);
+  }, [snapshots, timeframe, selectedTokenId, includeTimeInLabel]);
+
+  const hasAnyHistory =
+    selectedTokenId === "all"
+      ? snapshots.length > 0
+      : snapshots.some((s) => selectedTokenId in s.perToken);
 
   const startingValue = filtered[0]?.value ?? 0;
   const latestValue = filtered[filtered.length - 1]?.value ?? 0;
@@ -141,7 +161,11 @@ export default function PortfolioProgress({
           {filtered.length < 2 ? (
             <div className="flex h-full flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-border/60 text-center">
               <p className="text-sm text-muted-foreground">
-                {filtered.length === 0 ? "No snapshots in this range yet." : "Only one check so far."}
+                {!hasAnyHistory
+                  ? `${selectedToken ? selectedToken.symbol : "This token"} was added after the last price check.`
+                  : filtered.length === 0
+                    ? "No snapshots in this range yet."
+                    : "Only one check so far."}
               </p>
               <p className="text-xs text-muted-foreground/70">
                 A trend line appears once more weekly refreshes have run.
