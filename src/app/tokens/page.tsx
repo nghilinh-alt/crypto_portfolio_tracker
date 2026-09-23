@@ -1,9 +1,6 @@
-import Link from "next/link";
 import { getAllTokensWithLadder, getCategories } from "@/lib/data";
 import AddTokenForm from "@/components/AddTokenForm";
-import DeleteButton from "@/components/DeleteButton";
-import TokenAvatar from "@/components/TokenAvatar";
-import { formatPrice } from "@/lib/format";
+import TokensList from "@/components/TokensList";
 
 export const dynamic = "force-dynamic";
 
@@ -31,62 +28,21 @@ export default async function TokensPage() {
           <p className="mt-1 text-sm text-muted-foreground">Add your first token using the button above.</p>
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {tokens.map((token) => (
-            <div key={token.id} className="rounded-2xl border border-border bg-card p-5 relative overflow-hidden group hover:border-primary/50 transition-colors flex flex-col">
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
-              <div className="relative z-10 flex flex-col h-full">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <TokenAvatar
-                      symbol={token.symbol}
-                      iconUrl={token.iconUrl}
-                      className="h-10 w-10 text-xs shadow-inner"
-                    />
-                    <div>
-                      <Link href={`/tokens/${token.id}`} className="text-lg font-display font-medium text-foreground hover:text-primary transition-colors">
-                        {token.symbol}
-                      </Link>
-                      <div className="text-xs text-muted-foreground">
-                        {token.name}
-                        {token.category && ` · ${token.category.name}`}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center">
-                    <DeleteButton
-                      url={`/api/tokens/${token.id}`}
-                      confirmText={`Delete ${token.symbol} and all its transactions? This can't be undone.`}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 mt-auto">
-                  <div className="bg-background/50 rounded-lg p-3 border border-border/50">
-                    <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-1">Current</div>
-                    <div className="font-mono text-sm text-foreground">{formatPrice(token.currentPrice)}</div>
-                  </div>
-                  <div className="bg-background/50 rounded-lg p-3 border border-border/50">
-                    <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-1">Recent High</div>
-                    <div className="font-mono text-sm text-foreground">{formatPrice(token.recentHigh)}</div>
-                  </div>
-                </div>
-
-                <div className="mt-4 pt-4 border-t border-border/50 flex items-center justify-between">
-                  <div className="text-xs font-mono text-muted-foreground">
-                    <span className="opacity-50">CG:</span> {token.coingeckoId ?? "—"} <span className="mx-1 opacity-20">|</span> <span className="opacity-50">BY:</span> {token.bybitSymbol ?? "—"}
-                  </div>
-                  <Link
-                    href={`/tokens/${token.id}`}
-                    className="text-xs font-medium text-primary hover:text-primary/80 transition-colors"
-                  >
-                    Manage →
-                  </Link>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+        <TokensList
+          tokens={tokens.map((token) => ({
+            id: token.id,
+            symbol: token.symbol,
+            name: token.name,
+            categoryName: token.category?.name ?? null,
+            iconUrl: token.iconUrl,
+            currentPrice: token.currentPrice,
+            recentHigh: token.recentHigh,
+            coingeckoId: token.coingeckoId,
+            bybitSymbol: token.bybitSymbol,
+            holdingsValueUsd: token.ladder.holdingsValueUsd,
+            status: token.ladder.status,
+          }))}
+        />
       )}
     </div>
   );

@@ -1,4 +1,5 @@
 import { prisma } from "./prisma";
+import type { PortfolioCashTransaction } from "@prisma/client";
 
 /**
  * The portfolio-wide cash pool's balance — for money moved out of a fully
@@ -12,4 +13,18 @@ export async function getPortfolioCashPoolBalance(): Promise<number> {
     (sum, t) => sum + (t.direction === "IN" ? t.amount : -t.amount),
     0
   );
+}
+
+export type PortfolioCashTransactionWithToken = PortfolioCashTransaction & {
+  token: { symbol: string } | null;
+};
+
+export async function getPortfolioCashTransactions(
+  limit = 50
+): Promise<PortfolioCashTransactionWithToken[]> {
+  return prisma.portfolioCashTransaction.findMany({
+    include: { token: { select: { symbol: true } } },
+    orderBy: { occurredAt: "desc" },
+    take: limit,
+  });
 }
