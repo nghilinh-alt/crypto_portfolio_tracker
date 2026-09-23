@@ -36,6 +36,11 @@ enum PortfolioCashDirection {
   OUT // pool cash was assigned into a token's cash bucket
 }
 
+enum AssetType {
+  CRYPTO
+  STOCK
+}
+
 // A reusable sell + rebuy ladder template (e.g. "Core", "Growth",
 // "Harvest") that can be applied to any token. Applying a category to a
 // token COPIES both rung sets onto that token at that moment; editing the
@@ -85,12 +90,15 @@ model CategoryRebuyRung {
 // regardless of how holdings fluctuate afterward.
 model Token {
   id              String    @id @default(cuid())
-  symbol          String    @unique
+  symbol          String
   name            String
+  assetType       AssetType @default(CRYPTO)
   categoryId      String?
-  coingeckoId     String? // e.g. "bitcoin" — used by the CoinGecko price provider
-  bybitSymbol     String? // e.g. "BTCUSDT" — used by the Bybit fallback provider
-  iconUrl         String? // logo image URL, fetched from CoinGecko via coingeckoId
+  coingeckoId     String? // e.g. "bitcoin" — used by the CoinGecko price provider (CRYPTO only)
+  bybitSymbol     String? // e.g. "BTCUSDT" — used by the Bybit fallback provider (CRYPTO only)
+  exchange        String? // e.g. "NASDAQ" — display only, for STOCK assets
+  finnhubSymbol   String? // e.g. "AAPL" — used by the Finnhub price/logo provider (STOCK only)
+  iconUrl         String? // logo image URL, fetched from CoinGecko or Finnhub
   recentHigh      Float     @default(0)
   basePrice       Float     @default(0)
   basePriceSetAt  DateTime  @default(now()) // when basePrice was last (re)set — the "since" date for portfolio growth
@@ -106,6 +114,11 @@ model Token {
   transactions   Transaction[]
   tokenSnapshots TokenSnapshot[]
   cashMovements  PortfolioCashTransaction[]
+
+  // Same ticker can legitimately exist as both a crypto symbol and a stock
+  // ticker (e.g. UNI is both Uniswap and a NASDAQ-listed stock) — unique
+  // per asset type, not globally.
+  @@unique([symbol, assetType])
 }
 
 // Sell ladder rung. pct is the % GAIN above basePrice that triggers this

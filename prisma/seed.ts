@@ -59,6 +59,7 @@ async function main() {
   const targets = TOKENS.map((t) => ({
     key: t.symbol,
     symbol: t.symbol,
+    assetType: "CRYPTO" as const,
     coingeckoId: t.coingeckoId,
     bybitSymbol: t.bybitSymbol,
   }));
@@ -67,7 +68,9 @@ async function main() {
   if (errors.length > 0) console.warn("Price fetch warnings:\n" + errors.join("\n"));
 
   for (const t of TOKENS) {
-    const existing = await prisma.token.findUnique({ where: { symbol: t.symbol } });
+    const existing = await prisma.token.findUnique({
+      where: { symbol_assetType: { symbol: t.symbol, assetType: "CRYPTO" } },
+    });
     if (existing) {
       console.log(`Skipping ${t.symbol} — already exists`);
       continue;

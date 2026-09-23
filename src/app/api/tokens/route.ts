@@ -17,7 +17,12 @@ export async function POST(request: Request) {
   if (!parsed.success) return zodErrorResponse(parsed.error);
   const input = parsed.data;
 
-  const existing = await prisma.token.findUnique({ where: { symbol: input.symbol } });
+  // Uniqueness is per asset type — e.g. UNI is both a crypto symbol and a
+  // real stock ticker, so the two can coexist. Only CRYPTO creation is
+  // wired up so far (Stocks CRUD lands in a later phase).
+  const existing = await prisma.token.findUnique({
+    where: { symbol_assetType: { symbol: input.symbol, assetType: "CRYPTO" } },
+  });
   if (existing) {
     return NextResponse.json(
       { error: `Token ${input.symbol} already exists` },

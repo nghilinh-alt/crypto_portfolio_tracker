@@ -28,8 +28,10 @@ export async function GET(request: Request) {
   const targets = tokens.map((t) => ({
     key: t.id,
     symbol: t.symbol,
+    assetType: t.assetType,
     coingeckoId: t.coingeckoId,
     bybitSymbol: t.bybitSymbol,
+    finnhubSymbol: t.finnhubSymbol,
   }));
 
   const { prices, source, errors } = await getPrices(targets);

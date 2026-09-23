@@ -22,3 +22,24 @@ export async function fetchTokenIconUrl(coingeckoId: string): Promise<string | n
     return null;
   }
 }
+
+/**
+ * Stock counterpart to fetchTokenIconUrl — Finnhub's company profile
+ * endpoint returns a logo URL directly, no separate lookup needed. Same
+ * one-off-at-creation-time usage pattern; the URL is cached on iconUrl.
+ */
+export async function fetchStockLogoUrl(finnhubSymbol: string): Promise<string | null> {
+  const apiKey = process.env.FINNHUB_API_KEY;
+  if (!apiKey) return null;
+
+  const url = `https://finnhub.io/api/v2/stock/profile2?symbol=${encodeURIComponent(finnhubSymbol)}&token=${apiKey}`;
+
+  try {
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) return null;
+    const json = await res.json();
+    return json?.logo || null;
+  } catch {
+    return null;
+  }
+}
