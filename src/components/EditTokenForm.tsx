@@ -6,20 +6,26 @@ import { useRouter } from "next/navigation";
 export default function EditTokenForm({
   tokenId,
   name,
+  assetType,
   categoryId,
   categories,
   coingeckoId,
   bybitSymbol,
+  exchange,
+  finnhubSymbol,
   recentHigh,
   basePrice,
   baseHoldings,
 }: {
   tokenId: string;
   name: string;
+  assetType: "CRYPTO" | "STOCK";
   categoryId: string | null;
   categories: Array<{ id: string; name: string }>;
   coingeckoId: string | null;
   bybitSymbol: string | null;
+  exchange: string | null;
+  finnhubSymbol: string | null;
   recentHigh: number;
   basePrice: number;
   baseHoldings: number;
@@ -31,6 +37,8 @@ export default function EditTokenForm({
     categoryId: categoryId ?? "",
     coingeckoId: coingeckoId ?? "",
     bybitSymbol: bybitSymbol ?? "",
+    exchange: exchange ?? "",
+    finnhubSymbol: finnhubSymbol ?? "",
     recentHigh: String(recentHigh),
     basePrice: String(basePrice),
     baseHoldings: String(baseHoldings),
@@ -45,15 +53,27 @@ export default function EditTokenForm({
       const res = await fetch(`/api/tokens/${tokenId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: values.name,
-          categoryId: values.categoryId || null,
-          coingeckoId: values.coingeckoId || null,
-          bybitSymbol: values.bybitSymbol || null,
-          recentHigh: Number(values.recentHigh),
-          basePrice: Number(values.basePrice),
-          baseHoldings: Number(values.baseHoldings),
-        }),
+        body: JSON.stringify(
+          assetType === "STOCK"
+            ? {
+                name: values.name,
+                categoryId: values.categoryId || null,
+                exchange: values.exchange || null,
+                finnhubSymbol: values.finnhubSymbol || null,
+                recentHigh: Number(values.recentHigh),
+                basePrice: Number(values.basePrice),
+                baseHoldings: Number(values.baseHoldings),
+              }
+            : {
+                name: values.name,
+                categoryId: values.categoryId || null,
+                coingeckoId: values.coingeckoId || null,
+                bybitSymbol: values.bybitSymbol || null,
+                recentHigh: Number(values.recentHigh),
+                basePrice: Number(values.basePrice),
+                baseHoldings: Number(values.baseHoldings),
+              }
+        ),
       });
       const body = await res.json();
       if (!res.ok) {
@@ -108,22 +128,46 @@ export default function EditTokenForm({
             just a label here — use &quot;Apply Category Template&quot; below to copy its rungs
           </span>
         </label>
-        <label className="block space-y-1">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">CoinGecko ID</span>
-          <input
-            value={values.coingeckoId}
-            onChange={(e) => setValues((v) => ({ ...v, coingeckoId: e.target.value }))}
-            className="block w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-          />
-        </label>
-        <label className="block space-y-1">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Bybit Symbol</span>
-          <input
-            value={values.bybitSymbol}
-            onChange={(e) => setValues((v) => ({ ...v, bybitSymbol: e.target.value }))}
-            className="block w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-          />
-        </label>
+        {assetType === "STOCK" ? (
+          <>
+            <label className="block space-y-1">
+              <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Exchange</span>
+              <input
+                value={values.exchange}
+                onChange={(e) => setValues((v) => ({ ...v, exchange: e.target.value }))}
+                className="block w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </label>
+            <label className="block space-y-1">
+              <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Finnhub Symbol</span>
+              <input
+                value={values.finnhubSymbol}
+                onChange={(e) => setValues((v) => ({ ...v, finnhubSymbol: e.target.value }))}
+                className="block w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+              <span className="text-[10px] text-muted-foreground/70">used for price + logo fetch</span>
+            </label>
+          </>
+        ) : (
+          <>
+            <label className="block space-y-1">
+              <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">CoinGecko ID</span>
+              <input
+                value={values.coingeckoId}
+                onChange={(e) => setValues((v) => ({ ...v, coingeckoId: e.target.value }))}
+                className="block w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </label>
+            <label className="block space-y-1">
+              <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Bybit Symbol</span>
+              <input
+                value={values.bybitSymbol}
+                onChange={(e) => setValues((v) => ({ ...v, bybitSymbol: e.target.value }))}
+                className="block w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </label>
+          </>
+        )}
         <label className="block space-y-1">
           <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Recent High (USD)</span>
           <input

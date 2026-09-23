@@ -113,10 +113,13 @@ export default async function TokenDetailPage({
             <EditTokenForm
               tokenId={token.id}
               name={token.name}
+              assetType={token.assetType}
               categoryId={token.categoryId}
               categories={categories.map((c) => ({ id: c.id, name: c.name }))}
               coingeckoId={token.coingeckoId}
               bybitSymbol={token.bybitSymbol}
+              exchange={token.exchange}
+              finnhubSymbol={token.finnhubSymbol}
               recentHigh={token.recentHigh}
               basePrice={token.basePrice}
               baseHoldings={token.baseHoldings}

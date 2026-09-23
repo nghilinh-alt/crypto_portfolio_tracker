@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getTokenWithLadder } from "@/lib/data";
 import { updateTokenSchema } from "@/lib/validation";
 import { zodErrorResponse, notFound } from "@/lib/apiHelpers";
-import { fetchTokenIconUrl } from "@/lib/tokenIcon";
+import { fetchTokenIconUrl, fetchStockLogoUrl } from "@/lib/tokenIcon";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -36,7 +36,11 @@ export async function PATCH(request: Request, { params }: Ctx) {
   }
 
   const dataWithIcon: typeof data & { iconUrl?: string | null } = data;
-  if (data.coingeckoId !== undefined && data.coingeckoId !== existing.coingeckoId) {
+  if (existing.assetType === "STOCK") {
+    if (data.finnhubSymbol !== undefined && data.finnhubSymbol !== existing.finnhubSymbol) {
+      dataWithIcon.iconUrl = data.finnhubSymbol ? await fetchStockLogoUrl(data.finnhubSymbol) : null;
+    }
+  } else if (data.coingeckoId !== undefined && data.coingeckoId !== existing.coingeckoId) {
     dataWithIcon.iconUrl = data.coingeckoId ? await fetchTokenIconUrl(data.coingeckoId) : null;
   }
 

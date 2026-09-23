@@ -15,8 +15,8 @@ export type TokenCard = {
   iconUrl: string | null;
   currentPrice: number;
   recentHigh: number;
-  coingeckoId: string | null;
-  bybitSymbol: string | null;
+  /** Pre-formatted per-asset-type footer text, e.g. "CG: bitcoin | BY: BTCUSDT" or "NASDAQ · AAPL". */
+  meta: string;
   holdingsValueUsd: number;
   status: TokenStatus;
 };
@@ -108,11 +108,7 @@ export default function TokensList({ tokens }: { tokens: TokenCard[] }) {
               </div>
 
               <div className="mt-4 flex items-center justify-between border-t border-border/50 pt-4">
-                <div className="font-mono text-xs text-muted-foreground">
-                  <span className="opacity-50">CG:</span> {token.coingeckoId ?? "—"}{" "}
-                  <span className="mx-1 opacity-20">|</span> <span className="opacity-50">BY:</span>{" "}
-                  {token.bybitSymbol ?? "—"}
-                </div>
+                <div className="font-mono text-xs text-muted-foreground">{token.meta}</div>
                 <Link
                   href={`/tokens/${token.id}`}
                   className="text-xs font-medium text-primary transition-colors hover:text-primary/80"

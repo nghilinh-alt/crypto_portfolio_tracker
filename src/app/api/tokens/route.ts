@@ -4,7 +4,7 @@ import { getAllTokensWithLadder } from "@/lib/data";
 import { createTokenSchema } from "@/lib/validation";
 import { zodErrorResponse, notFound } from "@/lib/apiHelpers";
 import { DEFAULT_REBUY_RUNGS } from "@/lib/ladder";
-import { fetchTokenIconUrl } from "@/lib/tokenIcon";
+import { fetchTokenIconUrl, fetchStockLogoUrl } from "@/lib/tokenIcon";
 
 export async function GET() {
   const tokens = await getAllTokensWithLadder();
@@ -18,10 +18,9 @@ export async function POST(request: Request) {
   const input = parsed.data;
 
   // Uniqueness is per asset type — e.g. UNI is both a crypto symbol and a
-  // real stock ticker, so the two can coexist. Only CRYPTO creation is
-  // wired up so far (Stocks CRUD lands in a later phase).
+  // real stock ticker, so the two can coexist.
   const existing = await prisma.token.findUnique({
-    where: { symbol_assetType: { symbol: input.symbol, assetType: "CRYPTO" } },
+    where: { symbol_assetType: { symbol: input.symbol, assetType: input.assetType } },
   });
   if (existing) {
     return NextResponse.json(
@@ -58,16 +57,26 @@ export async function POST(request: Request) {
     deployPct: "deployPct" in r ? r.deployPct : 0,
   }));
 
-  const iconUrl = input.coingeckoId ? await fetchTokenIconUrl(input.coingeckoId) : null;
+  const iconUrl =
+    input.assetType === "STOCK"
+      ? input.finnhubSymbol
+        ? await fetchStockLogoUrl(input.finnhubSymbol)
+        : null
+      : input.coingeckoId
+        ? await fetchTokenIconUrl(input.coingeckoId)
+        : null;
 
   const token = await prisma.$transaction(async (tx) => {
     const created = await tx.token.create({
       data: {
         symbol: input.symbol,
         name: input.name,
+        assetType: input.assetType,
         categoryId: input.categoryId ?? null,
         coingeckoId: input.coingeckoId ?? null,
         bybitSymbol: input.bybitSymbol ?? null,
+        exchange: input.exchange ?? null,
+        finnhubSymbol: input.finnhubSymbol ?? null,
         iconUrl,
         recentHigh: input.recentHigh,
         basePrice: input.basePrice,
