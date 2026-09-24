@@ -27,6 +27,9 @@ export type CashBucketFigures = {
    * amount never entered the Cash Bucket — it's earmarked, not spendable.
    */
   taxReserved: number;
+  /** $ cost basis of current holdings, average-cost method — exposed so a
+   * forecasted future sale can estimate its own tax withholding the same way. */
+  costBasisTotal: number;
 };
 
 /**
@@ -77,5 +80,5 @@ export function computeCashBucketFigures(transactions: CashBucketTx[]): CashBuck
     }
   }
 
-  return { cashBucket, cashBucketContributions, holdings, taxReserved };
+  return { cashBucket, cashBucketContributions, holdings, taxReserved, costBasisTotal };
 }

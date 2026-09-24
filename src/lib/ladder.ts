@@ -1,5 +1,5 @@
 import type { RungStatus } from "@prisma/client";
-import { computeCashBucketFigures, type CashBucketTx } from "./cashBucket";
+import { computeCashBucketFigures, TAX_RESERVE_RATE, type CashBucketTx } from "./cashBucket";
 
 /** How close price must be to an untouched rung's trigger to count as WATCH (§8). */
 const WATCH_BAND_PCT = 10;
@@ -42,6 +42,32 @@ export type RebuyRungView = RebuyRungLike & {
   rawDeployUsd: number;
 };
 
+/** The specific rung a WATCH status is about to trigger — whichever of the
+ * nearest-pending sell/rebuy rung is closest, when more than one qualifies.
+ * Carries a forecast of what actually happens if it fires, computed with
+ * today's Cash Bucket / cost basis — the real amount may differ slightly if
+ * either changes before the rung actually triggers. */
+export type NearestWatchTarget =
+  | {
+      kind: "sell";
+      pct: number;
+      triggerPrice: number;
+      distancePct: number;
+      forecastQty: number;
+      forecastProceedsUsd: number;
+      forecastTaxUsd: number;
+      forecastNetToCashBucketUsd: number;
+    }
+  | {
+      kind: "rebuy";
+      pct: number;
+      triggerPrice: number;
+      distancePct: number;
+      /** Capped at today's Cash Bucket balance. */
+      forecastDeployUsd: number;
+      forecastQtyBought: number;
+    };
+
 export type TokenLadderView = {
   currentPrice: number;
   recentHigh: number;
@@ -59,6 +85,8 @@ export type TokenLadderView = {
   /** Sum of rawDeployUsd across all eligible pending rebuy rungs, capped at cashBucket (§3). */
   suggestedRebuyDeployUsd: number;
   status: TokenStatus;
+  /** Only set when status is WATCH — the rung driving that status. */
+  nearestWatch: NearestWatchTarget | null;
 };
 
 export function sellTriggerPrice(basePrice: number, pct: number): number {
@@ -90,8 +118,9 @@ export function computeTokenLadderView(
   transactions: CashBucketTx[]
 ): TokenLadderView {
   const { currentPrice, recentHigh, basePrice, baseHoldings } = token;
-  const { cashBucket, cashBucketContributions, holdings, taxReserved } =
+  const { cashBucket, cashBucketContributions, holdings, taxReserved, costBasisTotal } =
     computeCashBucketFigures(transactions);
+  const avgCostPerUnit = holdings > 0 ? costBasisTotal / holdings : 0;
 
   const drawdownPct =
     recentHigh > 0 ? Math.max(0, ((recentHigh - currentPrice) / recentHigh) * 100) : 0;
@@ -149,6 +178,46 @@ export function computeTokenLadderView(
   else if (hasBuyAlert) status = "BUY";
   else if (sellWatch || rebuyWatch) status = "WATCH";
 
+  // Surface exactly which rung earned the WATCH status, so the UI can say
+  // "here's the one thing about to happen" instead of generic gain/drawdown
+  // numbers the reader has to interpret themselves. If both a sell and a
+  // rebuy rung are simultaneously in-band, show whichever is closer.
+  let nearestWatch: NearestWatchTarget | null = null;
+  if (sellWatch && nearestSell) {
+    const triggerPrice = sellTriggerPrice(basePrice, nearestSell.pct);
+    const distancePct = currentPrice > 0 ? ((triggerPrice - currentPrice) / currentPrice) * 100 : 0;
+    const forecastQty = (nearestSell.sellPortionPct / 100) * baseHoldings;
+    const forecastProceedsUsd = forecastQty * triggerPrice;
+    const costOfSoldUnits = avgCostPerUnit * forecastQty;
+    const forecastTaxUsd = Math.max(0, forecastProceedsUsd - costOfSoldUnits) * TAX_RESERVE_RATE;
+    nearestWatch = {
+      kind: "sell",
+      pct: nearestSell.pct,
+      triggerPrice,
+      distancePct,
+      forecastQty,
+      forecastProceedsUsd,
+      forecastTaxUsd,
+      forecastNetToCashBucketUsd: forecastProceedsUsd - forecastTaxUsd,
+    };
+  }
+  if (rebuyWatch && nearestRebuy) {
+    const triggerPrice = rebuyTriggerPrice(recentHigh, nearestRebuy.pct);
+    const distancePct = currentPrice > 0 ? ((currentPrice - triggerPrice) / currentPrice) * 100 : 0;
+    if (!nearestWatch || distancePct < nearestWatch.distancePct) {
+      const rawDeployUsd = (nearestRebuy.deployPct / 100) * cashBucketContributions;
+      const forecastDeployUsd = Math.max(0, Math.min(rawDeployUsd, cashBucket));
+      nearestWatch = {
+        kind: "rebuy",
+        pct: nearestRebuy.pct,
+        triggerPrice,
+        distancePct,
+        forecastDeployUsd,
+        forecastQtyBought: triggerPrice > 0 ? forecastDeployUsd / triggerPrice : 0,
+      };
+    }
+  }
+
   return {
     currentPrice,
     recentHigh,
@@ -165,6 +234,7 @@ export function computeTokenLadderView(
     rebuyRungs: rebuyRungViews,
     suggestedRebuyDeployUsd,
     status,
+    nearestWatch,
   };
 }
 

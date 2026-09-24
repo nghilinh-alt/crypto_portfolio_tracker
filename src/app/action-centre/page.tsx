@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getAllTokensWithLadder } from "@/lib/data";
+import { TAX_RESERVE_RATE } from "@/lib/cashBucket";
 import { formatUsd, formatPrice, formatPct, formatQty } from "@/lib/format";
 import StatusBadge from "@/components/StatusBadge";
 import TokenAvatar from "@/components/TokenAvatar";
@@ -162,7 +163,11 @@ export default async function ActionCentrePage() {
               <span className="font-mono text-xs text-muted-foreground">02</span>
               <h2 className="text-2xl font-display font-medium text-foreground">Watching</h2>
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">Within 10% of the next untriggered rung.</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Within 10% of the next untriggered rung — shown below with what it needs to trigger and what
+              would happen. Forecasts use today&apos;s Cash Bucket and cost basis, so the real amount may
+              shift a little by the time a rung actually fires.
+            </p>
           </div>
           <div className="flex items-center justify-center rounded-full bg-secondary text-secondary-foreground text-xs font-mono px-2 py-0.5">
             {watching.length}
@@ -176,35 +181,58 @@ export default async function ActionCentrePage() {
         ) : (
           <div className="overflow-hidden rounded-2xl border border-border bg-card">
             <div className="divide-y divide-border/50">
-              {watching.map((token) => (
-                <div key={token.id} className="flex flex-col sm:flex-row justify-between sm:items-center p-4 hover:bg-muted/30 transition-colors gap-3">
-                  <div className="flex items-center gap-3">
-                    <TokenAvatar
-                      symbol={token.symbol}
-                      iconUrl={token.iconUrl}
-                      gradient="from-primary/80 to-indigo-600/80"
-                      className="h-8 w-8 text-[10px]"
-                    />
-                    <div>
-                      <Link href={`/tokens/${token.id}`} className="font-medium text-foreground hover:underline">
-                        {token.symbol}
-                      </Link>
-                      <span className="ml-2 text-xs text-muted-foreground">{token.name}</span>
+              {watching.map((token) => {
+                const w = token.ladder.nearestWatch;
+                const isSell = w?.kind === "sell";
+                return (
+                  <div key={token.id} className="flex flex-col gap-3 p-4 hover:bg-muted/30 transition-colors">
+                    <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
+                      <div className="flex items-center gap-3">
+                        <TokenAvatar
+                          symbol={token.symbol}
+                          iconUrl={token.iconUrl}
+                          gradient="from-primary/80 to-indigo-600/80"
+                          className="h-8 w-8 text-[10px]"
+                        />
+                        <div>
+                          <Link href={`/tokens/${token.id}`} className="font-medium text-foreground hover:underline">
+                            {token.symbol}
+                          </Link>
+                          <span className="ml-2 text-xs text-muted-foreground">{token.name}</span>
+                          <div className="text-xs text-muted-foreground">{formatPrice(token.ladder.currentPrice)} now</div>
+                        </div>
+                      </div>
+                      {w && (
+                        <div
+                          className={`flex items-center gap-3 rounded-lg border px-3 py-1.5 text-sm ${
+                            isSell
+                              ? "border-destructive/20 bg-destructive/5 text-destructive"
+                              : "border-emerald-500/20 bg-emerald-500/5 text-emerald-500"
+                          }`}
+                        >
+                          <span className="font-mono text-[10px] font-semibold uppercase tracking-wider">
+                            {isSell ? "Sell" : "Rebuy"} {isSell ? "+" : "-"}
+                            {w.pct}%
+                          </span>
+                          <span className="w-px h-3 bg-current opacity-20" />
+                          <span className="font-mono text-foreground">{formatPrice(w.triggerPrice)}</span>
+                          <span className="w-px h-3 bg-current opacity-20" />
+                          <span className="font-medium">{formatPct(w.distancePct)} to go</span>
+                        </div>
+                      )}
                     </div>
+                    {w && (
+                      <div className="pl-11 text-xs text-muted-foreground sm:text-right">
+                        {w.kind === "sell"
+                          ? `→ sell ~${formatQty(w.forecastQty)} ${token.symbol} (${formatUsd(w.forecastProceedsUsd)}) — net ${formatUsd(w.forecastNetToCashBucketUsd)} to Cash Bucket after ~${formatPct(TAX_RESERVE_RATE * 100, 0)} tax`
+                          : w.forecastDeployUsd > 0
+                            ? `→ deploy ${formatUsd(w.forecastDeployUsd)} → +${formatQty(w.forecastQtyBought)} ${token.symbol}`
+                            : `→ would deploy $0 — Cash Bucket is empty right now`}
+                      </div>
+                    )}
                   </div>
-                  <div className="text-sm text-muted-foreground flex items-center gap-3 bg-background/50 rounded-lg px-3 py-1.5 border border-border/40">
-                    <span className="text-foreground font-mono">{formatPrice(token.ladder.currentPrice)}</span>
-                    <span className="w-px h-3 bg-border" />
-                    <span className={token.ladder.gainFromBasePct >= 0 ? "text-emerald-500" : "text-destructive"}>
-                      {token.ladder.gainFromBasePct >= 0 ? "+" : ""}{formatPct(token.ladder.gainFromBasePct)} base
-                    </span>
-                    <span className="w-px h-3 bg-border" />
-                    <span className={token.ladder.drawdownPct > 0 ? "text-destructive" : "text-muted-foreground"}>
-                      {formatPct(-token.ladder.drawdownPct)} high
-                    </span>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
