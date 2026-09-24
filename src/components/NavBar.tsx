@@ -7,12 +7,12 @@ import RefreshPricesButton from "./RefreshPricesButton";
 const LINKS = [
   { href: "/", label: "Dashboard" },
   { href: "/action-centre", label: "Action Centre" },
+  { href: "/watchlist", label: "Watchlist" },
   { href: "/tokens", label: "Tokens" },
   { href: "/stocks", label: "Stocks" },
-  { href: "/watchlist", label: "Watchlist" },
-  { href: "/categories", label: "Categories" },
   { href: "/cash-buckets", label: "Cash Buckets" },
   { href: "/transactions", label: "Transactions" },
+  { href: "/categories", label: "Categories" },
 ];
 
 export default function NavBar() {
@@ -23,7 +23,7 @@ export default function NavBar() {
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8">
           <Link href="/" className="font-display font-semibold text-foreground text-lg tracking-tight hover:opacity-80 transition-opacity">
-            Cockpit
+            Rekt
           </Link>
           <nav className="flex items-center gap-6 text-sm overflow-x-auto pb-2 sm:pb-0">
             {LINKS.map((link) => {
