@@ -3,13 +3,15 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import TokenAvatar from "./TokenAvatar";
+import DeleteButton from "./DeleteButton";
 import { formatPrice, formatPct } from "@/lib/format";
+import { assetDetailHref } from "@/lib/assetRoute";
 
 export type WatchlistItem = {
   id: string;
   symbol: string;
   name: string;
-  assetType: "CRYPTO" | "STOCK";
+  assetType: "CRYPTO" | "STOCK" | "BULLION";
   iconUrl: string | null;
   currentPrice: number;
   dayChangePct: number | null;
@@ -18,13 +20,14 @@ export type WatchlistItem = {
   targetBuyPrice: number | null;
 };
 
-type Tab = "ALL" | "CRYPTO" | "STOCK";
+type Tab = "ALL" | "CRYPTO" | "STOCK" | "BULLION";
 type SortKey = "az" | "change" | "price" | "target";
 
 const TABS: Array<{ key: Tab; label: string }> = [
   { key: "ALL", label: "All" },
   { key: "CRYPTO", label: "Crypto" },
   { key: "STOCK", label: "Stocks" },
+  { key: "BULLION", label: "Bullion" },
 ];
 
 const SORT_OPTIONS: Array<{ key: SortKey; label: string }> = [
@@ -66,7 +69,7 @@ export default function WatchlistTable({ items }: { items: WatchlistItem[] }) {
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="grid grid-cols-3 gap-1 rounded-xl bg-muted p-1 sm:flex">
+        <div className="grid grid-cols-2 gap-1 rounded-xl bg-muted p-1 sm:flex">
           {TABS.map((option) => (
             <button
               key={option.key}
@@ -107,7 +110,7 @@ export default function WatchlistTable({ items }: { items: WatchlistItem[] }) {
         </p>
       ) : (
         <div className="overflow-hidden rounded-2xl border border-border bg-card">
-          <div className="hidden md:grid grid-cols-[minmax(200px,1.8fr)_.6fr_.8fr_.8fr_1fr_.8fr_1fr] gap-4 border-b border-border/60 bg-muted/30 px-6 py-3 text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
+          <div className="hidden md:grid grid-cols-[minmax(200px,1.8fr)_.6fr_.8fr_.8fr_1fr_.8fr_1fr_auto] gap-4 border-b border-border/60 bg-muted/30 px-6 py-3 text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
             <span>Asset</span>
             <span>Type</span>
             <span className="text-right">Price</span>
@@ -115,6 +118,7 @@ export default function WatchlistTable({ items }: { items: WatchlistItem[] }) {
             <span className="text-right">Day Range</span>
             <span className="text-right">Target Buy</span>
             <span className="text-right">To Target</span>
+            <span />
           </div>
           <div className="divide-y divide-border/50">
             {sorted.map((item) => {
@@ -124,21 +128,20 @@ export default function WatchlistTable({ items }: { items: WatchlistItem[] }) {
               const targetHit = distance !== null && distance <= 0;
 
               return (
-                <Link
+                <div
                   key={item.id}
-                  href={`/tokens/${item.id}`}
-                  className="grid grid-cols-2 items-center gap-4 px-6 py-4 transition-colors hover:bg-muted/40 md:grid-cols-[minmax(200px,1.8fr)_.6fr_.8fr_.8fr_1fr_.8fr_1fr]"
+                  className="grid grid-cols-2 items-center gap-4 px-6 py-4 transition-colors hover:bg-muted/40 md:grid-cols-[minmax(200px,1.8fr)_.6fr_.8fr_.8fr_1fr_.8fr_1fr_auto]"
                 >
-                  <div className="flex items-center gap-3">
+                  <Link href={assetDetailHref(item.assetType, item.id)} className="flex items-center gap-3">
                     <TokenAvatar symbol={item.symbol} iconUrl={item.iconUrl} className="h-9 w-9 text-xs" />
                     <div>
                       <div className="font-medium text-foreground">{item.symbol}</div>
                       <div className="text-xs text-muted-foreground">{item.name}</div>
                     </div>
-                  </div>
+                  </Link>
                   <div>
                     <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
-                      {item.assetType === "STOCK" ? "Stock" : "Crypto"}
+                      {item.assetType === "STOCK" ? "Stock" : item.assetType === "BULLION" ? "Bullion" : "Crypto"}
                     </span>
                   </div>
                   <div className="text-right font-mono text-sm text-foreground">{formatPrice(item.currentPrice)}</div>
@@ -156,7 +159,13 @@ export default function WatchlistTable({ items }: { items: WatchlistItem[] }) {
                   <div className={`text-right text-sm font-medium ${targetHit ? "text-emerald-500" : "text-muted-foreground"}`}>
                     {distance === null ? "—" : targetHit ? "Target reached" : `${formatPct(distance)} above`}
                   </div>
-                </Link>
+                  <div className="flex items-center justify-end">
+                    <DeleteButton
+                      url={`/api/tokens/${item.id}`}
+                      confirmText={`Remove ${item.symbol} from the watchlist? This deletes it and its transaction history — this can't be undone.`}
+                    />
+                  </div>
+                </div>
               );
             })}
           </div>

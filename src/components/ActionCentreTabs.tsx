@@ -6,13 +6,14 @@ import StatusBadge from "./StatusBadge";
 import TokenAvatar from "./TokenAvatar";
 import { formatUsd, formatPrice, formatPct, formatQty } from "@/lib/format";
 import type { TokenStatus, NearestWatchTarget } from "@/lib/ladder";
+import { assetDetailHref } from "@/lib/assetRoute";
 
 export type ActionCentreToken = {
   id: string;
   symbol: string;
   name: string;
   iconUrl: string | null;
-  assetType: "CRYPTO" | "STOCK";
+  assetType: "CRYPTO" | "STOCK" | "BULLION";
   status: TokenStatus;
   currentPrice: number;
   gainFromBasePct: number;
@@ -35,12 +36,13 @@ export type ActionCentreToken = {
   nearestWatch: NearestWatchTarget | null;
 };
 
-type Tab = "ALL" | "CRYPTO" | "STOCK";
+type Tab = "ALL" | "CRYPTO" | "STOCK" | "BULLION";
 
 const TABS: Array<{ key: Tab; label: string }> = [
   { key: "ALL", label: "All" },
   { key: "CRYPTO", label: "Crypto" },
   { key: "STOCK", label: "Stocks" },
+  { key: "BULLION", label: "Bullion" },
 ];
 
 export default function ActionCentreTabs({
@@ -62,7 +64,7 @@ export default function ActionCentreTabs({
   return (
     <>
       <div className="flex justify-end">
-        <div className="grid grid-cols-3 gap-1 rounded-xl bg-muted p-1 sm:flex">
+        <div className="grid grid-cols-2 gap-1 rounded-xl bg-muted p-1 sm:flex">
           {TABS.map((option) => (
             <button
               key={option.key}
@@ -128,7 +130,7 @@ export default function ActionCentreTabs({
                     <TokenAvatar symbol={token.symbol} iconUrl={token.iconUrl} className="h-11 w-11 text-xs" />
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <Link href={`/tokens/${token.id}`} className="text-xl font-display font-medium text-foreground hover:underline">
+                        <Link href={assetDetailHref(token.assetType, token.id)} className="text-xl font-display font-medium text-foreground hover:underline">
                           {token.symbol}
                         </Link>
                         <StatusBadge status={token.status} />
@@ -244,7 +246,7 @@ export default function ActionCentreTabs({
                           className="h-8 w-8 text-[10px]"
                         />
                         <div>
-                          <Link href={`/tokens/${token.id}`} className="font-medium text-foreground hover:underline">
+                          <Link href={assetDetailHref(token.assetType, token.id)} className="font-medium text-foreground hover:underline">
                             {token.symbol}
                           </Link>
                           <span className="ml-2 text-xs text-muted-foreground">{token.name}</span>

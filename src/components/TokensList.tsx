@@ -6,12 +6,13 @@ import DeleteButton from "./DeleteButton";
 import TokenAvatar from "./TokenAvatar";
 import { formatPrice } from "@/lib/format";
 import type { TokenStatus } from "@/lib/ladder";
+import { assetDetailHref } from "@/lib/assetRoute";
 
 export type TokenCard = {
   id: string;
   symbol: string;
   name: string;
-  assetType: "CRYPTO" | "STOCK";
+  assetType: "CRYPTO" | "STOCK" | "BULLION";
   categoryName: string | null;
   iconUrl: string | null;
   currentPrice: number;
@@ -85,7 +86,7 @@ export default function TokensList({
                   <TokenAvatar symbol={token.symbol} iconUrl={token.iconUrl} className="h-10 w-10 text-xs shadow-inner" />
                   <div>
                     <Link
-                      href={`/tokens/${token.id}`}
+                      href={assetDetailHref(token.assetType, token.id)}
                       className="text-lg font-display font-medium text-foreground transition-colors hover:text-primary"
                     >
                       {token.symbol}
@@ -123,7 +124,7 @@ export default function TokensList({
               <div className="mt-4 flex items-center justify-between border-t border-border/50 pt-4">
                 <div className="font-mono text-xs text-muted-foreground">{token.meta}</div>
                 <Link
-                  href={`/tokens/${token.id}`}
+                  href={assetDetailHref(token.assetType, token.id)}
                   className="text-xs font-medium text-primary transition-colors hover:text-primary/80"
                 >
                   Manage →

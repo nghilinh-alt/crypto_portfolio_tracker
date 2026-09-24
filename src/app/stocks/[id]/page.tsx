@@ -2,7 +2,7 @@ import TokenDetailView from "@/components/TokenDetailView";
 
 export const dynamic = "force-dynamic";
 
-export default async function TokenDetailPage({
+export default async function StockDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;

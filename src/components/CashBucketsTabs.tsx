@@ -5,12 +5,13 @@ import Link from "next/link";
 import TokenAvatar from "./TokenAvatar";
 import PortfolioCashPool from "./PortfolioCashPool";
 import { formatUsd, formatDate } from "@/lib/format";
+import { assetDetailHref } from "@/lib/assetRoute";
 
 export type CashBucketToken = {
   id: string;
   symbol: string;
   iconUrl: string | null;
-  assetType: "CRYPTO" | "STOCK";
+  assetType: "CRYPTO" | "STOCK" | "BULLION";
   cashBucket: number;
   cashBucketContributions: number;
   taxReserved: number;
@@ -25,12 +26,13 @@ export type PoolTransaction = {
   note: string | null;
 };
 
-type Tab = "ALL" | "CRYPTO" | "STOCK";
+type Tab = "ALL" | "CRYPTO" | "STOCK" | "BULLION";
 
 const TABS: Array<{ key: Tab; label: string }> = [
   { key: "ALL", label: "All" },
   { key: "CRYPTO", label: "Crypto" },
   { key: "STOCK", label: "Stocks" },
+  { key: "BULLION", label: "Bullion" },
 ];
 
 export default function CashBucketsTabs({
@@ -66,7 +68,7 @@ export default function CashBucketsTabs({
   return (
     <div className="space-y-10">
       <div className="flex justify-end">
-        <div className="grid grid-cols-3 gap-1 rounded-xl bg-muted p-1 sm:flex">
+        <div className="grid grid-cols-2 gap-1 rounded-xl bg-muted p-1 sm:flex">
           {TABS.map((option) => (
             <button
               key={option.key}
@@ -107,7 +109,9 @@ export default function CashBucketsTabs({
         <h2 className="text-2xl font-display font-medium text-foreground">Per-Token Buckets</h2>
         {filtered.length === 0 ? (
           <p className="rounded-2xl border border-dashed border-border bg-card/50 p-8 text-center text-sm text-muted-foreground">
-            {tab === "ALL" ? "No tokens tracked yet." : `No ${tab === "STOCK" ? "stocks" : "tokens"} tracked yet.`}
+            {tab === "ALL"
+              ? "No tokens tracked yet."
+              : `No ${tab === "STOCK" ? "stocks" : tab === "BULLION" ? "bullion" : "tokens"} tracked yet.`}
           </p>
         ) : (
           <div className="overflow-hidden rounded-2xl border border-border bg-card">
@@ -121,7 +125,7 @@ export default function CashBucketsTabs({
               {filtered.map((t) => (
                 <Link
                   key={t.id}
-                  href={`/tokens/${t.id}`}
+                  href={assetDetailHref(t.assetType, t.id)}
                   className="grid grid-cols-2 items-center gap-4 px-6 py-4 transition-colors hover:bg-muted/40 md:grid-cols-[minmax(200px,2fr)_1fr_1fr_1fr]"
                 >
                   <div className="flex items-center gap-3">

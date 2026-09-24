@@ -8,13 +8,14 @@ import PortfolioCashPool from "./PortfolioCashPool";
 import TokenAvatar from "./TokenAvatar";
 import { formatUsd, formatPrice, formatPct, formatQty } from "@/lib/format";
 import type { TokenStatus } from "@/lib/ladder";
+import { assetDetailHref } from "@/lib/assetRoute";
 
 export type DashboardToken = {
   id: string;
   symbol: string;
   name: string;
   iconUrl: string | null;
-  assetType: "CRYPTO" | "STOCK";
+  assetType: "CRYPTO" | "STOCK" | "BULLION";
   categoryName: string | null;
   baseHoldings: number;
   basePrice: number;
@@ -31,12 +32,13 @@ export type DashboardToken = {
   drawdownPct: number;
 };
 
-type Tab = "ALL" | "CRYPTO" | "STOCK";
+type Tab = "ALL" | "CRYPTO" | "STOCK" | "BULLION";
 
 const TABS: Array<{ key: Tab; label: string }> = [
   { key: "ALL", label: "All" },
   { key: "CRYPTO", label: "Crypto" },
   { key: "STOCK", label: "Stocks" },
+  { key: "BULLION", label: "Bullion" },
 ];
 
 function getTokenColor(symbol: string) {
@@ -104,8 +106,9 @@ export default function DashboardTabs({
 
   const actionable = filtered.filter((t) => t.status === "SELL" || t.status === "BUY");
 
-  const assetNounPlural = tab === "CRYPTO" ? "tokens" : tab === "STOCK" ? "stocks" : "positions";
-  const addHref = tab === "STOCK" ? "/stocks" : "/tokens";
+  const assetNounPlural =
+    tab === "CRYPTO" ? "tokens" : tab === "STOCK" ? "stocks" : tab === "BULLION" ? "bullion" : "positions";
+  const addHref = tab === "STOCK" ? "/stocks" : tab === "BULLION" ? "/bullion" : "/tokens";
 
   return (
     <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -114,7 +117,7 @@ export default function DashboardTabs({
           <h1 className="text-4xl md:text-5xl font-display font-semibold tracking-tight text-foreground">Command Center</h1>
           <p className="text-muted-foreground text-sm">Decisive action, measured execution.</p>
         </div>
-        <div className="grid grid-cols-3 gap-1 rounded-xl bg-muted p-1 sm:flex">
+        <div className="grid grid-cols-2 gap-1 rounded-xl bg-muted p-1 sm:flex">
           {TABS.map((option) => (
             <button
               key={option.key}
@@ -138,7 +141,13 @@ export default function DashboardTabs({
             <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent pointer-events-none" />
             <div className="relative z-10">
               <span className="text-muted-foreground font-mono text-xs uppercase tracking-wider">
-                {tab === "ALL" ? "Total Portfolio Value" : tab === "CRYPTO" ? "Total Crypto Value" : "Total Stocks Value"}
+                {tab === "ALL"
+                  ? "Total Portfolio Value"
+                  : tab === "CRYPTO"
+                    ? "Total Crypto Value"
+                    : tab === "STOCK"
+                      ? "Total Stocks Value"
+                      : "Total Bullion Value"}
               </span>
               <div className="text-5xl md:text-6xl font-display font-semibold mt-2 tracking-tight">{formatUsd(totalValue)}</div>
             </div>
@@ -204,7 +213,7 @@ export default function DashboardTabs({
 
             <div className="overflow-hidden rounded-2xl border border-border bg-card">
               <div className="hidden xl:grid grid-cols-[minmax(300px,2fr)_minmax(145px,1fr)_minmax(145px,1fr)_minmax(130px,.9fr)] gap-8 border-b border-border/60 bg-muted/30 px-6 py-3 text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
-                <span>{tab === "STOCK" ? "Stock" : "Token"} / Current price</span>
+                <span>{tab === "STOCK" ? "Stock" : tab === "BULLION" ? "Bullion" : "Token"} / Current price</span>
                 <span className="text-right">Base price</span>
                 <span className="text-right">Recent high</span>
                 <span className="text-right">Value</span>
@@ -222,7 +231,7 @@ export default function DashboardTabs({
                     const gradient = getTokenColor(token.symbol);
 
                     return (
-                      <Link key={token.id} href={`/tokens/${token.id}`} className="block group hover:bg-muted/40 transition-colors">
+                      <Link key={token.id} href={assetDetailHref(token.assetType, token.id)} className="block group hover:bg-muted/40 transition-colors">
                         <div className="p-4 xl:grid xl:grid-cols-[minmax(300px,2fr)_minmax(145px,1fr)_minmax(145px,1fr)_minmax(130px,.9fr)] xl:items-center xl:gap-8 xl:px-6 xl:py-4">
                           <div className="flex items-center gap-4">
                             <TokenAvatar
@@ -357,14 +366,14 @@ function EmptyState({ assetNounPlural, href }: { assetNounPlural: string; href: 
       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-10 w-10 mb-4 text-muted-foreground opacity-50"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>
       <h3 className="text-lg font-medium text-foreground">No {assetNounPlural} yet</h3>
       <p className="mt-1 text-sm text-muted-foreground max-w-sm">
-        Start tracking by adding your first {assetNounPlural === "stocks" ? "stock" : "token"} and configuring its sell
-        and rebuy ladders.
+        Start tracking by adding {assetNounPlural === "bullion" ? "some bullion" : `your first ${assetNounPlural === "stocks" ? "stock" : "token"}`} and
+        configuring its sell and rebuy ladders.
       </p>
       <Link
         href={href}
         className="mt-6 inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:bg-primary/90 transition-colors"
       >
-        Add your first {assetNounPlural === "stocks" ? "stock" : "token"}
+        {assetNounPlural === "bullion" ? "Add bullion" : `Add your first ${assetNounPlural === "stocks" ? "stock" : "token"}`}
       </Link>
     </div>
   );
