@@ -16,6 +16,7 @@ export default function EditTokenForm({
   recentHigh,
   basePrice,
   baseHoldings,
+  targetBuyPrice,
 }: {
   tokenId: string;
   name: string;
@@ -29,6 +30,7 @@ export default function EditTokenForm({
   recentHigh: number;
   basePrice: number;
   baseHoldings: number;
+  targetBuyPrice: number | null;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -42,6 +44,7 @@ export default function EditTokenForm({
     recentHigh: String(recentHigh),
     basePrice: String(basePrice),
     baseHoldings: String(baseHoldings),
+    targetBuyPrice: targetBuyPrice === null ? "" : String(targetBuyPrice),
   });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -63,6 +66,7 @@ export default function EditTokenForm({
                 recentHigh: Number(values.recentHigh),
                 basePrice: Number(values.basePrice),
                 baseHoldings: Number(values.baseHoldings),
+                targetBuyPrice: values.targetBuyPrice ? Number(values.targetBuyPrice) : null,
               }
             : {
                 name: values.name,
@@ -72,6 +76,7 @@ export default function EditTokenForm({
                 recentHigh: Number(values.recentHigh),
                 basePrice: Number(values.basePrice),
                 baseHoldings: Number(values.baseHoldings),
+                targetBuyPrice: values.targetBuyPrice ? Number(values.targetBuyPrice) : null,
               }
         ),
       });
@@ -200,6 +205,17 @@ export default function EditTokenForm({
             className="block w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
           />
           <span className="text-[10px] text-muted-foreground/70">sell % sized against this</span>
+        </label>
+        <label className="block space-y-1">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Target Buy Price (USD)</span>
+          <input
+            type="number"
+            step="any"
+            value={values.targetBuyPrice}
+            onChange={(e) => setValues((v) => ({ ...v, targetBuyPrice: e.target.value }))}
+            className="block w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+          />
+          <span className="text-[10px] text-muted-foreground/70">informational only — how far away is your entry</span>
         </label>
       </div>
 

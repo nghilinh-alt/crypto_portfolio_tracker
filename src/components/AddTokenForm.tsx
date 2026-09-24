@@ -5,8 +5,13 @@ import { useRouter } from "next/navigation";
 
 export default function AddTokenForm({
   categories,
+  mode = "position",
 }: {
   categories: Array<{ id: string; name: string }>;
+  /** "watchlist" hides the position fields (Current/Recent High/Base Price/Base
+   * Holdings) in favor of a Target Buy Price — nothing to size a ladder
+   * against yet since there's no position, just a price to watch for. */
+  mode?: "position" | "watchlist";
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -21,17 +26,27 @@ export default function AddTokenForm({
     const formEl = e.currentTarget;
     const form = new FormData(formEl);
     const priceNow = form.get("currentPrice") ? Number(form.get("currentPrice")) : undefined;
-    const payload = {
-      symbol: String(form.get("symbol") ?? ""),
-      name: String(form.get("name") ?? ""),
-      categoryId: form.get("categoryId") ? String(form.get("categoryId")) : undefined,
-      coingeckoId: form.get("coingeckoId") ? String(form.get("coingeckoId")) : undefined,
-      bybitSymbol: form.get("bybitSymbol") ? String(form.get("bybitSymbol")) : undefined,
-      currentPrice: priceNow,
-      recentHigh: form.get("recentHigh") ? Number(form.get("recentHigh")) : priceNow,
-      basePrice: form.get("basePrice") ? Number(form.get("basePrice")) : priceNow,
-      baseHoldings: form.get("baseHoldings") ? Number(form.get("baseHoldings")) : undefined,
-    };
+    const payload =
+      mode === "watchlist"
+        ? {
+            symbol: String(form.get("symbol") ?? ""),
+            name: String(form.get("name") ?? ""),
+            categoryId: form.get("categoryId") ? String(form.get("categoryId")) : undefined,
+            coingeckoId: form.get("coingeckoId") ? String(form.get("coingeckoId")) : undefined,
+            bybitSymbol: form.get("bybitSymbol") ? String(form.get("bybitSymbol")) : undefined,
+            targetBuyPrice: form.get("targetBuyPrice") ? Number(form.get("targetBuyPrice")) : undefined,
+          }
+        : {
+            symbol: String(form.get("symbol") ?? ""),
+            name: String(form.get("name") ?? ""),
+            categoryId: form.get("categoryId") ? String(form.get("categoryId")) : undefined,
+            coingeckoId: form.get("coingeckoId") ? String(form.get("coingeckoId")) : undefined,
+            bybitSymbol: form.get("bybitSymbol") ? String(form.get("bybitSymbol")) : undefined,
+            currentPrice: priceNow,
+            recentHigh: form.get("recentHigh") ? Number(form.get("recentHigh")) : priceNow,
+            basePrice: form.get("basePrice") ? Number(form.get("basePrice")) : priceNow,
+            baseHoldings: form.get("baseHoldings") ? Number(form.get("baseHoldings")) : undefined,
+          };
 
     try {
       const res = await fetch("/api/tokens", {
@@ -110,43 +125,64 @@ export default function AddTokenForm({
           hint="used for price fetch"
         />
         <Field label="Bybit Symbol" name="bybitSymbol" placeholder="BTCUSDT" hint="fallback" />
-        <Field
-          label="Current Price (USD)"
-          name="currentPrice"
-          type="number"
-          step="any"
-          hint="also fills recent high / base price below"
-        />
-        <Field
-          label="Recent High (USD)"
-          name="recentHigh"
-          type="number"
-          step="any"
-          hint="drives rebuy ladder"
-        />
-        <Field
-          label="Base Price (USD)"
-          name="basePrice"
-          type="number"
-          step="any"
-          hint="fixed, drives sell ladder"
-        />
-        <Field
-          label="Base Holdings"
-          name="baseHoldings"
-          type="number"
-          step="any"
-          hint="sell % sized against this"
-        />
+        {mode === "watchlist" ? (
+          <Field
+            label="Target Buy Price (USD)"
+            name="targetBuyPrice"
+            type="number"
+            step="any"
+            hint="how far away is the price you want"
+          />
+        ) : (
+          <>
+            <Field
+              label="Current Price (USD)"
+              name="currentPrice"
+              type="number"
+              step="any"
+              hint="also fills recent high / base price below"
+            />
+            <Field
+              label="Recent High (USD)"
+              name="recentHigh"
+              type="number"
+              step="any"
+              hint="drives rebuy ladder"
+            />
+            <Field
+              label="Base Price (USD)"
+              name="basePrice"
+              type="number"
+              step="any"
+              hint="fixed, drives sell ladder"
+            />
+            <Field
+              label="Base Holdings"
+              name="baseHoldings"
+              type="number"
+              step="any"
+              hint="sell % sized against this"
+            />
+          </>
+        )}
       </div>
 
       <div className="bg-muted/30 rounded-lg p-4 border border-border/50">
         <p className="text-xs text-muted-foreground">
-          <span className="font-semibold text-foreground">Pro tip:</span> Picking a category applies its sell-ladder template automatically. The rebuy ladder
-          defaults to -15/-25/-35/-45% off recent high, deploying 10/20/30/40% of Cash Bucket
-          Contributions. Edit any of it from the token page after creating it. If Base Holdings
-          and Base Price are both set, an opening BUY is logged automatically so Holdings Value
-          isn&apos;t $0 until your next transaction.
+          {mode === "watchlist" ? (
+            <>
+              <span className="font-semibold text-foreground">Pro tip:</span> Current price gets filled in on the
+              next price refresh. Set a Target Buy Price to see how far away it is once it does.
+            </>
+          ) : (
+            <>
+              <span className="font-semibold text-foreground">Pro tip:</span> Picking a category applies its sell-ladder template automatically. The rebuy ladder
+              defaults to -15/-25/-35/-45% off recent high, deploying 10/20/30/40% of Cash Bucket
+              Contributions. Edit any of it from the token page after creating it. If Base Holdings
+              and Base Price are both set, an opening BUY is logged automatically so Holdings Value
+              isn&apos;t $0 until your next transaction.
+            </>
+          )}
         </p>
       </div>
 

@@ -112,6 +112,10 @@ model Token {
   dayChangePct    Float?
   dayHigh         Float?
   dayLow          Float?
+  // Purely informational entry-price target for Watchlist items — unlike
+  // basePrice/recentHigh it never drives ladder triggers, just "how far away
+  // is the price I actually want to buy at."
+  targetBuyPrice  Float?
   lastPriceUpdate DateTime?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt

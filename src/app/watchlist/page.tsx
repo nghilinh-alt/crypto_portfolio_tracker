@@ -23,8 +23,8 @@ export default async function WatchlistPage() {
           </p>
         </div>
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-          <AddTokenForm categories={categoryOptions} />
-          <AddStockForm categories={categoryOptions} />
+          <AddTokenForm categories={categoryOptions} mode="watchlist" />
+          <AddStockForm categories={categoryOptions} mode="watchlist" />
         </div>
       </header>
 
@@ -49,6 +49,7 @@ export default async function WatchlistPage() {
             dayChangePct: t.dayChangePct,
             dayHigh: t.dayHigh,
             dayLow: t.dayLow,
+            targetBuyPrice: t.targetBuyPrice,
           }))}
         />
       )}

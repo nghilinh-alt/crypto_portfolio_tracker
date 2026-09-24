@@ -13,6 +13,7 @@ export const createTokenSchema = z.object({
   basePrice: z.number().nonnegative().optional().default(0),
   baseHoldings: z.number().nonnegative().optional().default(0),
   currentPrice: z.number().nonnegative().optional().default(0),
+  targetBuyPrice: z.number().positive().optional().nullable(),
   sellRungs: z
     .array(
       z.object({
@@ -41,6 +42,7 @@ export const updateTokenSchema = z.object({
   recentHigh: z.number().nonnegative().optional(),
   basePrice: z.number().nonnegative().optional(),
   baseHoldings: z.number().nonnegative().optional(),
+  targetBuyPrice: z.number().positive().optional().nullable(),
 });
 
 export const createSellRungSchema = z.object({

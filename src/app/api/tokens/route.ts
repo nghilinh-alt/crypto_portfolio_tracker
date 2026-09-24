@@ -82,6 +82,7 @@ export async function POST(request: Request) {
         basePrice: input.basePrice,
         baseHoldings: input.baseHoldings,
         currentPrice: input.currentPrice,
+        targetBuyPrice: input.targetBuyPrice ?? null,
         sellRungs: { create: sellRungs },
         rebuyRungs: { create: rebuyRungs },
       },

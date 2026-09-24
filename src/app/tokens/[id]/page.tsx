@@ -131,6 +131,7 @@ export default async function TokenDetailPage({
               recentHigh={token.recentHigh}
               basePrice={token.basePrice}
               baseHoldings={token.baseHoldings}
+              targetBuyPrice={token.targetBuyPrice}
             />
           </section>
         </div>
