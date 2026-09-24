@@ -39,6 +39,7 @@ enum PortfolioCashDirection {
 enum AssetType {
   CRYPTO
   STOCK
+  BULLION
 }
 
 // A reusable sell + rebuy ladder template (e.g. "Core", "Growth",

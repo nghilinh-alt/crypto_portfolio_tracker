@@ -5,6 +5,7 @@ import { createTokenSchema } from "@/lib/validation";
 import { zodErrorResponse, notFound } from "@/lib/apiHelpers";
 import { DEFAULT_REBUY_RUNGS } from "@/lib/ladder";
 import { fetchTokenIconUrl, fetchStockLogoUrl } from "@/lib/tokenIcon";
+import { getBullionMetal } from "@/lib/bullion";
 
 export async function GET() {
   const tokens = await getAllTokensWithLadder();
@@ -16,6 +17,13 @@ export async function POST(request: Request) {
   const parsed = createTokenSchema.safeParse(body);
   if (!parsed.success) return zodErrorResponse(parsed.error);
   const input = parsed.data;
+
+  // Bullion is a fixed catalog (Gold/Silver/Platinum/Palladium) — name and
+  // icon are always derived from the symbol, never typed by hand.
+  const bullionMetal = input.assetType === "BULLION" ? getBullionMetal(input.symbol) : undefined;
+  if (input.assetType === "BULLION" && !bullionMetal) {
+    return NextResponse.json({ error: `Unknown bullion symbol ${input.symbol}` }, { status: 400 });
+  }
 
   // Uniqueness is per asset type — e.g. UNI is both a crypto symbol and a
   // real stock ticker, so the two can coexist.
@@ -57,8 +65,9 @@ export async function POST(request: Request) {
     deployPct: "deployPct" in r ? r.deployPct : 0,
   }));
 
-  const iconUrl =
-    input.assetType === "STOCK"
+  const iconUrl = bullionMetal
+    ? bullionMetal.iconUrl
+    : input.assetType === "STOCK"
       ? input.finnhubSymbol
         ? await fetchStockLogoUrl(input.finnhubSymbol)
         : null
@@ -70,7 +79,7 @@ export async function POST(request: Request) {
     const created = await tx.token.create({
       data: {
         symbol: input.symbol,
-        name: input.name,
+        name: bullionMetal ? bullionMetal.name : (input.name as string),
         assetType: input.assetType,
         categoryId: input.categoryId ?? null,
         coingeckoId: input.coingeckoId ?? null,

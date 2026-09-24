@@ -1,36 +1,45 @@
 import { z } from "zod";
 
-export const createTokenSchema = z.object({
-  symbol: z.string().trim().min(1).max(20).toUpperCase(),
-  name: z.string().trim().min(1).max(80),
-  assetType: z.enum(["CRYPTO", "STOCK"]).optional().default("CRYPTO"),
-  categoryId: z.string().trim().min(1).optional().nullable(),
-  coingeckoId: z.string().trim().min(1).max(80).optional().nullable(),
-  bybitSymbol: z.string().trim().min(1).max(20).optional().nullable(),
-  exchange: z.string().trim().min(1).max(40).optional().nullable(),
-  finnhubSymbol: z.string().trim().min(1).max(20).optional().nullable(),
-  recentHigh: z.number().nonnegative().optional().default(0),
-  basePrice: z.number().nonnegative().optional().default(0),
-  baseHoldings: z.number().nonnegative().optional().default(0),
-  currentPrice: z.number().nonnegative().optional().default(0),
-  targetBuyPrice: z.number().positive().optional().nullable(),
-  sellRungs: z
-    .array(
-      z.object({
-        pct: z.number().positive(),
-        sellPortionPct: z.number().positive().max(100),
-      })
-    )
-    .optional(),
-  rebuyRungs: z
-    .array(
-      z.object({
-        pct: z.number().positive(),
-        deployPct: z.number().positive().max(100),
-      })
-    )
-    .optional(),
-});
+export const createTokenSchema = z
+  .object({
+    symbol: z.string().trim().min(1).max(20).toUpperCase(),
+    // Optional because Bullion derives it server-side from the metal symbol
+    // (Gold/Silver/Platinum/Palladium) — see the superRefine below for the
+    // CRYPTO/STOCK case, which still requires it.
+    name: z.string().trim().min(1).max(80).optional(),
+    assetType: z.enum(["CRYPTO", "STOCK", "BULLION"]).optional().default("CRYPTO"),
+    categoryId: z.string().trim().min(1).optional().nullable(),
+    coingeckoId: z.string().trim().min(1).max(80).optional().nullable(),
+    bybitSymbol: z.string().trim().min(1).max(20).optional().nullable(),
+    exchange: z.string().trim().min(1).max(40).optional().nullable(),
+    finnhubSymbol: z.string().trim().min(1).max(20).optional().nullable(),
+    recentHigh: z.number().nonnegative().optional().default(0),
+    basePrice: z.number().nonnegative().optional().default(0),
+    baseHoldings: z.number().nonnegative().optional().default(0),
+    currentPrice: z.number().nonnegative().optional().default(0),
+    targetBuyPrice: z.number().positive().optional().nullable(),
+    sellRungs: z
+      .array(
+        z.object({
+          pct: z.number().positive(),
+          sellPortionPct: z.number().positive().max(100),
+        })
+      )
+      .optional(),
+    rebuyRungs: z
+      .array(
+        z.object({
+          pct: z.number().positive(),
+          deployPct: z.number().positive().max(100),
+        })
+      )
+      .optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.assetType !== "BULLION" && !data.name) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["name"], message: "Name is required" });
+    }
+  });
 
 export const updateTokenSchema = z.object({
   name: z.string().trim().min(1).max(80).optional(),

@@ -20,7 +20,7 @@ export default function EditTokenForm({
 }: {
   tokenId: string;
   name: string;
-  assetType: "CRYPTO" | "STOCK";
+  assetType: "CRYPTO" | "STOCK" | "BULLION";
   categoryId: string | null;
   categories: Array<{ id: string; name: string }>;
   coingeckoId: string | null;
@@ -68,16 +68,24 @@ export default function EditTokenForm({
                 baseHoldings: Number(values.baseHoldings),
                 targetBuyPrice: values.targetBuyPrice ? Number(values.targetBuyPrice) : null,
               }
-            : {
-                name: values.name,
-                categoryId: values.categoryId || null,
-                coingeckoId: values.coingeckoId || null,
-                bybitSymbol: values.bybitSymbol || null,
-                recentHigh: Number(values.recentHigh),
-                basePrice: Number(values.basePrice),
-                baseHoldings: Number(values.baseHoldings),
-                targetBuyPrice: values.targetBuyPrice ? Number(values.targetBuyPrice) : null,
-              }
+            : assetType === "BULLION"
+              ? {
+                  categoryId: values.categoryId || null,
+                  recentHigh: Number(values.recentHigh),
+                  basePrice: Number(values.basePrice),
+                  baseHoldings: Number(values.baseHoldings),
+                  targetBuyPrice: values.targetBuyPrice ? Number(values.targetBuyPrice) : null,
+                }
+              : {
+                  name: values.name,
+                  categoryId: values.categoryId || null,
+                  coingeckoId: values.coingeckoId || null,
+                  bybitSymbol: values.bybitSymbol || null,
+                  recentHigh: Number(values.recentHigh),
+                  basePrice: Number(values.basePrice),
+                  baseHoldings: Number(values.baseHoldings),
+                  targetBuyPrice: values.targetBuyPrice ? Number(values.targetBuyPrice) : null,
+                }
         ),
       });
       const body = await res.json();
@@ -107,14 +115,21 @@ export default function EditTokenForm({
   return (
     <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
       <div className="space-y-3">
-        <label className="block space-y-1">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Name</span>
-          <input
-            value={values.name}
-            onChange={(e) => setValues((v) => ({ ...v, name: e.target.value }))}
-            className="block w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-          />
-        </label>
+        {assetType === "BULLION" ? (
+          <div className="block space-y-1">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Metal</span>
+            <div className="rounded-md border border-input bg-muted/30 px-3 py-1.5 text-sm text-foreground">{values.name}</div>
+          </div>
+        ) : (
+          <label className="block space-y-1">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Name</span>
+            <input
+              value={values.name}
+              onChange={(e) => setValues((v) => ({ ...v, name: e.target.value }))}
+              className="block w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+          </label>
+        )}
         <label className="block space-y-1">
           <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Category</span>
           <select
@@ -153,7 +168,7 @@ export default function EditTokenForm({
               <span className="text-[10px] text-muted-foreground/70">used for price + logo fetch</span>
             </label>
           </>
-        ) : (
+        ) : assetType === "BULLION" ? null : (
           <>
             <label className="block space-y-1">
               <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">CoinGecko ID</span>
@@ -174,7 +189,9 @@ export default function EditTokenForm({
           </>
         )}
         <label className="block space-y-1">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Recent High (USD)</span>
+          <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
+            Recent High (USD{assetType === "BULLION" ? "/oz" : ""})
+          </span>
           <input
             type="number"
             step="any"
@@ -185,7 +202,9 @@ export default function EditTokenForm({
           <span className="text-[10px] text-muted-foreground/70">ratchets up, drives rebuy</span>
         </label>
         <label className="block space-y-1">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Base Price (USD)</span>
+          <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
+            Base Price (USD{assetType === "BULLION" ? "/oz" : ""})
+          </span>
           <input
             type="number"
             step="any"
@@ -196,7 +215,9 @@ export default function EditTokenForm({
           <span className="text-[10px] text-muted-foreground/70">fixed, drives sell</span>
         </label>
         <label className="block space-y-1">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Base Holdings</span>
+          <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
+            Base Holdings{assetType === "BULLION" ? " (troy oz)" : ""}
+          </span>
           <input
             type="number"
             step="any"
@@ -207,7 +228,9 @@ export default function EditTokenForm({
           <span className="text-[10px] text-muted-foreground/70">sell % sized against this</span>
         </label>
         <label className="block space-y-1">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Target Buy Price (USD)</span>
+          <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
+            Target Buy Price (USD{assetType === "BULLION" ? "/oz" : ""})
+          </span>
           <input
             type="number"
             step="any"

@@ -10,7 +10,7 @@ export type PriceTarget = {
   finnhubSymbol?: string | null;
 };
 
-export type PriceSource = "coingecko" | "bybit" | "finnhub";
+export type PriceSource = "coingecko" | "bybit" | "finnhub" | "goldapi";
 
 /** Day-range stats for the Watchlist view. All optional since CoinGecko's
  * lightweight batched endpoint only returns changePct, not high/low. */
