@@ -1,6 +1,6 @@
 import type { PriceProvider, PriceResult, PriceTarget } from "./types";
 
-const BASE_URL = "https://finnhub.io/api/v2/quote";
+const BASE_URL = "https://finnhub.io/api/v1/quote";
 
 /**
  * Stock price provider (§5, Stocks phase). Free-tier Finnhub, ~60 req/min —

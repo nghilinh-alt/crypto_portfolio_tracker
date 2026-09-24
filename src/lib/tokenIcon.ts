@@ -32,7 +32,7 @@ export async function fetchStockLogoUrl(finnhubSymbol: string): Promise<string |
   const apiKey = process.env.FINNHUB_API_KEY;
   if (!apiKey) return null;
 
-  const url = `https://finnhub.io/api/v2/stock/profile2?symbol=${encodeURIComponent(finnhubSymbol)}&token=${apiKey}`;
+  const url = `https://finnhub.io/api/v1/stock/profile2?symbol=${encodeURIComponent(finnhubSymbol)}&token=${apiKey}`;
 
   try {
     const res = await fetch(url, { cache: "no-store" });
