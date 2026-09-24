@@ -3,11 +3,12 @@ import { bybitProvider } from "./bybit";
 import { finnhubProvider } from "./finnhub";
 import type { PriceResult, PriceTarget } from "./types";
 
-export type { PriceProvider, PriceResult, PriceTarget, PriceSource } from "./types";
+export type { PriceProvider, PriceResult, PriceTarget, PriceSource, DayStats } from "./types";
 
 function merge(combined: PriceResult, part: PriceResult) {
   Object.assign(combined.prices, part.prices);
   Object.assign(combined.source, part.source);
+  Object.assign(combined.dayStats, part.dayStats);
   combined.errors.push(...part.errors);
 }
 
@@ -19,7 +20,7 @@ function merge(combined: PriceResult, part: PriceResult) {
  * touches this file.
  */
 export async function getPrices(targets: PriceTarget[]): Promise<PriceResult> {
-  const combined: PriceResult = { prices: {}, source: {}, errors: [] };
+  const combined: PriceResult = { prices: {}, source: {}, dayStats: {}, errors: [] };
   if (targets.length === 0) return combined;
 
   const cryptoTargets = targets.filter((t) => t.assetType === "CRYPTO");

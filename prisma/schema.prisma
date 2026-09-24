@@ -104,6 +104,14 @@ model Token {
   basePriceSetAt  DateTime  @default(now()) // when basePrice was last (re)set — the "since" date for portfolio growth
   baseHoldings    Float     @default(0)
   currentPrice    Float     @default(0)
+  // Day-range stats for the Watchlist view (a token with 0 holdings is a
+  // watchlist item — no separate model needed). Populated by the same price
+  // refresh as currentPrice. dayHigh/dayLow are null for CoinGecko-sourced
+  // crypto — its lightweight batched endpoint doesn't return them, and
+  // fetching per-coin detail for it isn't worth the added request volume.
+  dayChangePct    Float?
+  dayHigh         Float?
+  dayLow          Float?
   lastPriceUpdate DateTime?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt

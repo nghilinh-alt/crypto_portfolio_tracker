@@ -34,7 +34,7 @@ export async function GET(request: Request) {
     finnhubSymbol: t.finnhubSymbol,
   }));
 
-  const { prices, source, errors } = await getPrices(targets);
+  const { prices, source, dayStats, errors } = await getPrices(targets);
   const now = new Date();
   const updated: Array<{
     symbol: string;
@@ -53,10 +53,18 @@ export async function GET(request: Request) {
 
     const newHigh = price > token.recentHigh;
     const recentHigh = newHigh ? price : token.recentHigh;
+    const stats = dayStats[token.id];
 
     await prisma.token.update({
       where: { id: token.id },
-      data: { currentPrice: price, recentHigh, lastPriceUpdate: now },
+      data: {
+        currentPrice: price,
+        recentHigh,
+        lastPriceUpdate: now,
+        dayChangePct: stats?.changePct ?? null,
+        dayHigh: stats?.high ?? null,
+        dayLow: stats?.low ?? null,
+      },
     });
 
     updated.push({

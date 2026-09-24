@@ -11,7 +11,7 @@ const BASE_URL = "https://finnhub.io/api/v1/quote";
 export const finnhubProvider: PriceProvider = {
   name: "finnhub",
   async getPrices(targets: PriceTarget[]): Promise<PriceResult> {
-    const result: PriceResult = { prices: {}, source: {}, errors: [] };
+    const result: PriceResult = { prices: {}, source: {}, dayStats: {}, errors: [] };
     const withSymbols = targets.filter((t) => t.finnhubSymbol);
     if (withSymbols.length === 0) return result;
 
@@ -35,6 +35,11 @@ export const finnhubProvider: PriceProvider = {
           if (typeof price === "number" && price > 0) {
             result.prices[target.key] = price;
             result.source[target.key] = "finnhub";
+            result.dayStats[target.key] = {
+              changePct: typeof json?.dp === "number" ? json.dp : undefined,
+              high: typeof json?.h === "number" ? json.h : undefined,
+              low: typeof json?.l === "number" ? json.l : undefined,
+            };
           } else {
             result.errors.push(`Finnhub: no quote returned for ${target.symbol} (${target.finnhubSymbol})`);
           }

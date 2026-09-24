@@ -9,6 +9,7 @@ const LINKS = [
   { href: "/action-centre", label: "Action Centre" },
   { href: "/tokens", label: "Tokens" },
   { href: "/stocks", label: "Stocks" },
+  { href: "/watchlist", label: "Watchlist" },
   { href: "/categories", label: "Categories" },
   { href: "/cash-buckets", label: "Cash Buckets" },
   { href: "/transactions", label: "Transactions" },

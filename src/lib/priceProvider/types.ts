@@ -12,11 +12,21 @@ export type PriceTarget = {
 
 export type PriceSource = "coingecko" | "bybit" | "finnhub";
 
+/** Day-range stats for the Watchlist view. All optional since CoinGecko's
+ * lightweight batched endpoint only returns changePct, not high/low. */
+export type DayStats = {
+  changePct?: number;
+  high?: number;
+  low?: number;
+};
+
 export type PriceResult = {
   /** USD price per target key, only present for targets that resolved. */
   prices: Record<string, number>;
   /** Which provider satisfied each key, for observability. */
   source: Record<string, PriceSource>;
+  /** Day-range stats per target key, wherever the provider makes them available. */
+  dayStats: Record<string, DayStats>;
   /** Human-readable problems encountered, non-fatal. */
   errors: string[];
 };

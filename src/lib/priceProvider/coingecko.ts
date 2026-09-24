@@ -9,19 +9,19 @@ const BASE_URL = "https://api.coingecko.com/api/v3/simple/price";
 export const coingeckoProvider: PriceProvider = {
   name: "coingecko",
   async getPrices(targets: PriceTarget[]): Promise<PriceResult> {
-    const result: PriceResult = { prices: {}, source: {}, errors: [] };
+    const result: PriceResult = { prices: {}, source: {}, dayStats: {}, errors: [] };
     const withIds = targets.filter((t) => t.coingeckoId);
     if (withIds.length === 0) return result;
 
     const ids = [...new Set(withIds.map((t) => t.coingeckoId as string))].join(",");
-    const url = `${BASE_URL}?ids=${encodeURIComponent(ids)}&vs_currencies=usd`;
+    const url = `${BASE_URL}?ids=${encodeURIComponent(ids)}&vs_currencies=usd&include_24hr_change=true`;
 
     const headers: Record<string, string> = {};
     if (process.env.COINGECKO_API_KEY) {
       headers["x-cg-demo-api-key"] = process.env.COINGECKO_API_KEY;
     }
 
-    let json: Record<string, { usd?: number }>;
+    let json: Record<string, { usd?: number; usd_24h_change?: number }>;
     try {
       const res = await fetch(url, { headers, cache: "no-store" });
       if (!res.ok) {
@@ -35,10 +35,15 @@ export const coingeckoProvider: PriceProvider = {
     }
 
     for (const target of withIds) {
-      const price = json[target.coingeckoId as string]?.usd;
+      const entry = json[target.coingeckoId as string];
+      const price = entry?.usd;
       if (typeof price === "number") {
         result.prices[target.key] = price;
         result.source[target.key] = "coingecko";
+        // No day high/low from this lightweight endpoint — only change%.
+        if (typeof entry?.usd_24h_change === "number") {
+          result.dayStats[target.key] = { changePct: entry.usd_24h_change };
+        }
       } else {
         result.errors.push(
           `CoinGecko: no USD price returned for ${target.symbol} (${target.coingeckoId})`
