@@ -42,8 +42,8 @@ export async function PATCH(request: Request, { params }: Ctx) {
 }
 
 // Tokens using this category just fall back to uncategorized (categoryId
-// SetNull) — their own sell rungs are untouched either way, since applying
-// a category only ever copies rungs at the moment you apply it.
+// SetNull) — their rungs are left exactly as last synced, since there's no
+// new template state to sync to once the category itself is gone.
 export async function DELETE(_request: Request, { params }: Ctx) {
   const { id } = await params;
   const existing = await prisma.category.findUnique({ where: { id } });

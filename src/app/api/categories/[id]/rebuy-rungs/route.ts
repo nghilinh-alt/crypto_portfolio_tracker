@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createCategoryRebuyRungSchema } from "@/lib/validation";
 import { zodErrorResponse, notFound } from "@/lib/apiHelpers";
+import { syncCategoryRebuyRungsToTokens } from "@/lib/categorySync";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -21,5 +22,6 @@ export async function POST(request: Request, { params }: Ctx) {
   const rung = await prisma.categoryRebuyRung.create({
     data: { categoryId, order: nextOrder, ...parsed.data },
   });
+  await syncCategoryRebuyRungsToTokens(categoryId);
   return NextResponse.json(rung, { status: 201 });
 }

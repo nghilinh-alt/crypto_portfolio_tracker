@@ -14,9 +14,9 @@ export default async function CategoriesPage() {
             Categories
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Reusable sell-ladder templates. Apply one to a token from its page to copy these
-            rungs onto it — editing a category here doesn&apos;t change tokens that already
-            applied it.
+            Sell &amp; rebuy ladder templates. Apply one to a token or stock from its page to link
+            it here — editing rungs on this page live-updates every linked token. Only pending
+            rungs are touched; anything already triggered stays as historical record.
           </p>
         </div>
       </header>

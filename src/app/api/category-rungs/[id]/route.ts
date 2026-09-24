@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { updateCategoryRungSchema } from "@/lib/validation";
 import { zodErrorResponse, notFound } from "@/lib/apiHelpers";
+import { syncCategorySellRungsToTokens } from "@/lib/categorySync";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -15,6 +16,7 @@ export async function PATCH(request: Request, { params }: Ctx) {
   if (!existing) return notFound("Category rung");
 
   const rung = await prisma.categorySellRung.update({ where: { id }, data: parsed.data });
+  await syncCategorySellRungsToTokens(existing.categoryId);
   return NextResponse.json(rung);
 }
 
@@ -23,5 +25,6 @@ export async function DELETE(_request: Request, { params }: Ctx) {
   const existing = await prisma.categorySellRung.findUnique({ where: { id } });
   if (!existing) return notFound("Category rung");
   await prisma.categorySellRung.delete({ where: { id } });
+  await syncCategorySellRungsToTokens(existing.categoryId);
   return NextResponse.json({ ok: true });
 }

@@ -20,7 +20,7 @@ export default function ApplyCategoryTemplate({
     if (!category) return;
     if (
       !window.confirm(
-        `Replace this token's entire Sell Ladder AND Rebuy Ladder with the "${category.name}" template? This can't be undone.`
+        `Replace this token's entire Sell Ladder AND Rebuy Ladder with the "${category.name}" template? This can't be undone, and future edits to "${category.name}" will keep updating this token automatically.`
       )
     ) {
       return;
