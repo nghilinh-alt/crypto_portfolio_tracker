@@ -90,13 +90,13 @@ export default function ActionCentreTabs({
             </div>
             <div className="mt-2 text-3xl font-display text-foreground tracking-tight">
               {actionable.length
-                ? `${actionable.length} ${actionable.length === 1 ? "token needs" : "tokens need"} attention`
+                ? `${actionable.length} ${actionable.length === 1 ? "asset needs" : "assets need"} attention`
                 : "No targets crossed"}
             </div>
           </div>
           <div>
             <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-              Tokens watching
+              Assets watching
             </div>
             <div className="mt-1 text-2xl font-display text-foreground tracking-tight">{watching.length}</div>
           </div>
