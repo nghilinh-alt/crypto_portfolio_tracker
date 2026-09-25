@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Crypto Portfolio Manager",
+  title: "Rekt",
   description: "Sell/rebuy ladder tracker",
 };
 
