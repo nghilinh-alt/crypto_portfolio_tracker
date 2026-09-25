@@ -245,7 +245,9 @@ export default function DashboardTabs({
       )}
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <TargetGoalPanel currentValue={wholePortfolioValue} initialTargetValueUsd={targetValueUsd} />
+        {tab === "ALL" && (
+          <TargetGoalPanel currentValue={wholePortfolioValue} initialTargetValueUsd={targetValueUsd} />
+        )}
         <PastResultsPanel performance={periodPerformance} />
       </div>
 
