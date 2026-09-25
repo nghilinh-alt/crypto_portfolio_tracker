@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import StatusBadge from "./StatusBadge";
 import PortfolioProgress, { type SnapshotPoint } from "./PortfolioProgress";
@@ -47,6 +47,9 @@ type PositionSortKey = "symbol" | "currentPrice" | "basePrice" | "recentHigh" | 
 const POSITION_GRID_COLS =
   "grid-cols-[minmax(240px,1.6fr)_minmax(110px,.8fr)_minmax(145px,1fr)_minmax(145px,1fr)_minmax(130px,.9fr)]";
 
+/** localStorage key for the "Hide $0 assets" checkbox — a per-browser display preference, not portfolio data. */
+const HIDE_ZERO_VALUE_KEY = "dashboard-hide-zero-value";
+
 const TABS: Array<{ key: Tab; label: string }> = [
   { key: "ALL", label: "All" },
   { key: "CRYPTO", label: "Crypto" },
@@ -82,6 +85,19 @@ export default function DashboardTabs({
   const [sortKey, setSortKey] = useState<PositionSortKey>("value");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [hideZeroValue, setHideZeroValue] = useState(false);
+
+  // Read the saved preference after mount (not in the initializer) so the
+  // first client render still matches the server-rendered HTML — avoids a
+  // hydration mismatch, at the cost of a one-frame flash before it applies.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time sync from browser storage, which SSR can't see
+    if (localStorage.getItem(HIDE_ZERO_VALUE_KEY) === "true") setHideZeroValue(true);
+  }, []);
+
+  function toggleHideZeroValue(checked: boolean) {
+    setHideZeroValue(checked);
+    localStorage.setItem(HIDE_ZERO_VALUE_KEY, String(checked));
+  }
 
   function toggleSort(key: PositionSortKey) {
     if (key === sortKey) {
@@ -290,7 +306,7 @@ export default function DashboardTabs({
                   <input
                     type="checkbox"
                     checked={hideZeroValue}
-                    onChange={(e) => setHideZeroValue(e.target.checked)}
+                    onChange={(e) => toggleHideZeroValue(e.target.checked)}
                     className="h-4 w-4 rounded border-input text-primary focus:ring-1 focus:ring-primary"
                   />
                   Hide $0 assets
