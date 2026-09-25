@@ -1,7 +1,6 @@
 import { getAllTokensWithLadder, getPortfolioHistory } from "@/lib/data";
 import { getPortfolioCashPoolBalance } from "@/lib/cashPool";
 import { getPortfolioSettings } from "@/lib/settings";
-import { computePeriodPerformance } from "@/lib/periodPerformance";
 import DashboardTabs from "@/components/DashboardTabs";
 
 // This reads live DB state on every request — never statically prerender it.
@@ -14,10 +13,6 @@ export default async function DashboardPage() {
     getPortfolioCashPoolBalance(),
     getPortfolioSettings(),
   ]);
-
-  const periodPerformance = computePeriodPerformance(
-    history.map((s) => ({ capturedAt: s.capturedAt, totalValueUsd: s.totalValueUsd }))
-  );
 
   const snapshots = history.map((s) => ({
     capturedAt: s.capturedAt.toISOString(),
@@ -54,7 +49,6 @@ export default async function DashboardPage() {
       snapshots={snapshots}
       poolBalance={poolBalance}
       targetValueUsd={settings?.targetValueUsd ?? null}
-      periodPerformance={periodPerformance}
     />
   );
 }

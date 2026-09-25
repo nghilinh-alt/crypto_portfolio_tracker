@@ -11,7 +11,7 @@ import TokenAvatar from "./TokenAvatar";
 import SortableHeader from "./SortableHeader";
 import { formatUsd, formatPrice, formatPct, formatQty } from "@/lib/format";
 import type { TokenStatus } from "@/lib/ladder";
-import type { PeriodPerformance } from "@/lib/periodPerformance";
+import { computePeriodPerformance } from "@/lib/periodPerformance";
 import { assetDetailHref } from "@/lib/assetRoute";
 
 export type DashboardToken = {
@@ -72,13 +72,11 @@ export default function DashboardTabs({
   snapshots,
   poolBalance,
   targetValueUsd,
-  periodPerformance,
 }: {
   tokens: DashboardToken[];
   snapshots: SnapshotPoint[];
   poolBalance: number;
   targetValueUsd: number | null;
-  periodPerformance: PeriodPerformance;
 }) {
   const [tab, setTab] = useState<Tab>("ALL");
   const [sortKey, setSortKey] = useState<PositionSortKey>("value");
@@ -99,14 +97,28 @@ export default function DashboardTabs({
     [tokens, tab]
   );
 
-  // Target Goal/Past Results describe the whole portfolio regardless of
-  // which asset-type tab is selected, so they're derived from the
-  // unfiltered `tokens`, not `filtered` — matching the same total-value
-  // formula used to capture a PortfolioSnapshot (see lib/snapshot.ts).
+  // Target Goal always describes the whole portfolio (a single target
+  // doesn't map to "Crypto only"), so it's derived from the unfiltered
+  // `tokens`, not `filtered` — matching the same total-value formula used
+  // to capture a PortfolioSnapshot (see lib/snapshot.ts).
   const wholePortfolioValue = useMemo(
     () => tokens.reduce((sum, t) => sum + t.holdingsValueUsd + t.cashBucket, 0) + poolBalance,
     [tokens, poolBalance]
   );
+
+  // Past Results is tab-scoped: on ALL it uses the snapshot's stored
+  // totalValueUsd (holdings + Cash Bucket + pool); on a filtered tab there's
+  // no historical per-asset-type Cash Bucket figure, only per-token holdings
+  // value, so it sums each filtered token's own perToken snapshot value —
+  // same limitation/approach as PortfolioProgress's "sum-tokens" mode.
+  const periodPerformance = useMemo(() => {
+    const series = snapshots.map((s) => ({
+      capturedAt: new Date(s.capturedAt),
+      totalValueUsd:
+        tab === "ALL" ? s.totalValueUsd : filtered.reduce((sum, t) => sum + (s.perToken[t.id] ?? 0), 0),
+    }));
+    return computePeriodPerformance(series);
+  }, [snapshots, filtered, tab]);
 
   const sortedPositions = useMemo(() => {
     const dir = sortDir === "asc" ? 1 : -1;
