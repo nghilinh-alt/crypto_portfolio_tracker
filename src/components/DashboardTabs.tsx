@@ -38,6 +38,11 @@ type Tab = "ALL" | "CRYPTO" | "STOCK" | "BULLION";
 /** Day change threshold (either direction) to flag a position as "on fire" or "icy" in the Active Positions list. */
 const ON_FIRE_THRESHOLD_PCT = 8;
 
+type PositionSortKey = "symbol" | "currentPrice" | "basePrice" | "recentHigh" | "value";
+
+const POSITION_GRID_COLS =
+  "grid-cols-[minmax(240px,1.6fr)_minmax(110px,.8fr)_minmax(145px,1fr)_minmax(145px,1fr)_minmax(130px,.9fr)]";
+
 const TABS: Array<{ key: Tab; label: string }> = [
   { key: "ALL", label: "All" },
   { key: "CRYPTO", label: "Crypto" },
@@ -68,11 +73,40 @@ export default function DashboardTabs({
   poolBalance: number;
 }) {
   const [tab, setTab] = useState<Tab>("ALL");
+  const [sortKey, setSortKey] = useState<PositionSortKey>("value");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
+  function toggleSort(key: PositionSortKey) {
+    if (key === sortKey) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir(key === "symbol" ? "asc" : "desc");
+    }
+  }
 
   const filtered = useMemo(
     () => (tab === "ALL" ? tokens : tokens.filter((t) => t.assetType === tab)),
     [tokens, tab]
   );
+
+  const sortedPositions = useMemo(() => {
+    const dir = sortDir === "asc" ? 1 : -1;
+    return filtered.slice().sort((a, b) => {
+      switch (sortKey) {
+        case "symbol":
+          return dir * a.symbol.localeCompare(b.symbol);
+        case "currentPrice":
+          return dir * (a.currentPrice - b.currentPrice);
+        case "basePrice":
+          return dir * (a.basePrice - b.basePrice);
+        case "recentHigh":
+          return dir * (a.recentHigh - b.recentHigh);
+        case "value":
+          return dir * (a.holdingsValueUsd - b.holdingsValueUsd);
+      }
+    });
+  }, [filtered, sortKey, sortDir]);
 
   const totals = useMemo(
     () =>
@@ -216,18 +250,22 @@ export default function DashboardTabs({
             </div>
 
             <div className="overflow-hidden rounded-2xl border border-border bg-card">
-              <div className="hidden xl:grid grid-cols-[minmax(300px,2fr)_minmax(145px,1fr)_minmax(145px,1fr)_minmax(130px,.9fr)] gap-8 border-b border-border/60 bg-muted/30 px-6 py-3 text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
-                <span>{tab === "STOCK" ? "Stock" : tab === "BULLION" ? "Bullion" : "Token"} / Current price</span>
-                <span className="text-right">Base price</span>
-                <span className="text-right">Recent high</span>
-                <span className="text-right">Value</span>
+              <div className={`hidden xl:grid ${POSITION_GRID_COLS} gap-6 border-b border-border/60 bg-muted/30 px-6 py-3 text-[10px] font-mono uppercase tracking-wider text-muted-foreground`}>
+                <PositionSortHeader
+                  label={tab === "STOCK" ? "Stock" : tab === "BULLION" ? "Bullion" : "Token"}
+                  sortKey="symbol"
+                  activeKey={sortKey}
+                  dir={sortDir}
+                  onClick={toggleSort}
+                />
+                <PositionSortHeader label="Current price" sortKey="currentPrice" activeKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
+                <PositionSortHeader label="Base price" sortKey="basePrice" activeKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
+                <PositionSortHeader label="Recent high" sortKey="recentHigh" activeKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
+                <PositionSortHeader label="Value" sortKey="value" activeKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
               </div>
 
               <div className="divide-y divide-border/50">
-                {filtered
-                  .slice()
-                  .sort((a, b) => b.holdingsValueUsd - a.holdingsValueUsd)
-                  .map((token) => {
+                {sortedPositions.map((token) => {
                     const value = token.holdingsValueUsd;
                     const allocation = totalValue > 0 ? (value / totalValue) * 100 : 0;
                     const gain = token.gainFromBasePct;
@@ -235,10 +273,16 @@ export default function DashboardTabs({
                     const gradient = getTokenColor(token.symbol);
                     const isOnFire = token.dayChangePct !== null && token.dayChangePct >= ON_FIRE_THRESHOLD_PCT;
                     const isIcy = token.dayChangePct !== null && token.dayChangePct <= -ON_FIRE_THRESHOLD_PCT;
+                    const priceColorClass =
+                      token.currentPrice > token.basePrice
+                        ? "text-emerald-500"
+                        : token.currentPrice < token.basePrice
+                          ? "text-destructive"
+                          : "text-foreground";
 
                     return (
                       <Link key={token.id} href={assetDetailHref(token.assetType, token.id)} className="block group hover:bg-muted/40 transition-colors">
-                        <div className="p-4 xl:grid xl:grid-cols-[minmax(300px,2fr)_minmax(145px,1fr)_minmax(145px,1fr)_minmax(130px,.9fr)] xl:items-center xl:gap-8 xl:px-6 xl:py-4">
+                        <div className={`p-4 xl:grid ${POSITION_GRID_COLS} xl:items-center xl:gap-6 xl:px-6 xl:py-4`}>
                           <div className="flex items-center gap-4">
                             <TokenAvatar
                               symbol={token.symbol}
@@ -267,23 +311,19 @@ export default function DashboardTabs({
                                   </span>
                                 )}
                               </div>
-                              <div className="mt-1 flex items-center justify-between gap-3">
+                              <div className="mt-1 flex items-center justify-between gap-3 xl:block">
                                 <span className="text-sm text-muted-foreground">
                                   {formatQty(token.holdings)} {token.symbol}
                                 </span>
-                                <span
-                                  className={`whitespace-nowrap font-medium tabular-nums ${
-                                    token.currentPrice > token.basePrice
-                                      ? "text-emerald-500"
-                                      : token.currentPrice < token.basePrice
-                                        ? "text-destructive"
-                                        : "text-foreground"
-                                  }`}
-                                >
+                                <span className={`whitespace-nowrap font-medium tabular-nums xl:hidden ${priceColorClass}`}>
                                   {formatPrice(token.currentPrice)}
                                 </span>
                               </div>
                             </div>
+                          </div>
+
+                          <div className="hidden xl:block xl:text-right">
+                            <span className={`font-medium tabular-nums ${priceColorClass}`}>{formatPrice(token.currentPrice)}</span>
                           </div>
 
                           <div className="mt-4 grid grid-cols-3 gap-3 border-t border-border/40 pt-3 xl:contents">
@@ -364,6 +404,39 @@ export default function DashboardTabs({
         </div>
       )}
     </div>
+  );
+}
+
+function PositionSortHeader({
+  label,
+  sortKey,
+  activeKey,
+  dir,
+  onClick,
+  align = "left",
+}: {
+  label: string;
+  sortKey: PositionSortKey;
+  activeKey: PositionSortKey;
+  dir: "asc" | "desc";
+  onClick: (key: PositionSortKey) => void;
+  align?: "left" | "right";
+}) {
+  const active = activeKey === sortKey;
+  const arrow = <span className="text-[8px]">{dir === "asc" ? "▲" : "▼"}</span>;
+
+  return (
+    <button
+      type="button"
+      onClick={() => onClick(sortKey)}
+      className={`flex w-full items-center gap-1 transition-colors hover:text-foreground ${
+        align === "right" ? "justify-end" : "justify-start"
+      } ${active ? "text-foreground" : ""}`}
+    >
+      {align === "right" && active && arrow}
+      <span>{label}</span>
+      {align === "left" && active && arrow}
+    </button>
   );
 }
 
