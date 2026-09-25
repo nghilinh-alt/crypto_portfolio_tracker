@@ -325,7 +325,10 @@ export default function DashboardTabs({
                 {visiblePositions.map((token) => {
                     const value = token.holdingsValueUsd;
                     const allocation = totalValue > 0 ? (value / totalValue) * 100 : 0;
-                    const gain = token.gainFromBasePct;
+                    // token.gainFromBasePct clamps to 0 when at/below base price (it drives
+                    // the sell ladder's ratchet logic), so it can't show a real loss here —
+                    // recompute the unclamped % vs base price just for this display.
+                    const gain = token.basePrice > 0 ? ((token.currentPrice - token.basePrice) / token.basePrice) * 100 : 0;
                     const drawdown = token.drawdownPct;
                     const gradient = getTokenColor(token.symbol);
                     const isOnFire = token.dayChangePct !== null && token.dayChangePct >= ON_FIRE_THRESHOLD_PCT;
@@ -387,7 +390,7 @@ export default function DashboardTabs({
                             <StackedPositionMetric
                               label="Base price"
                               primary={formatPrice(token.basePrice)}
-                              secondary={`+${formatPct(gain)} gain`}
+                              secondary={`${gain >= 0 ? "+" : ""}${formatPct(gain)} ${gain >= 0 ? "gain" : "loss"}`}
                               secondaryTone={gain > 0 ? "positive" : gain < 0 ? "negative" : "neutral"}
                             />
                             <StackedPositionMetric
