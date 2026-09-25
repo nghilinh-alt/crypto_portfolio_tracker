@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import DeleteButton from "./DeleteButton";
 import TokenAvatar from "./TokenAvatar";
+import SortableHeader from "./SortableHeader";
 import { formatPrice } from "@/lib/format";
 import type { TokenStatus } from "@/lib/ladder";
 import { assetDetailHref } from "@/lib/assetRoute";
@@ -27,19 +28,19 @@ type SortKey = "status" | "value" | "az";
 
 const STATUS_PRIORITY: Record<TokenStatus, number> = { SELL: 0, BUY: 1, WATCH: 2, HOLD: 3 };
 
-const SORT_OPTIONS: Array<{ key: SortKey; label: string }> = [
-  { key: "status", label: "Status (default)" },
-  { key: "value", label: "Holdings Value (high → low)" },
-  { key: "az", label: "Name (A → Z)" },
-];
-
-function sortTokens(tokens: TokenCard[], sortKey: SortKey): TokenCard[] {
+function sortTokens(tokens: TokenCard[], sortKey: SortKey, sortDir: "asc" | "desc"): TokenCard[] {
+  const dir = sortDir === "asc" ? 1 : -1;
   const copy = [...tokens];
-  if (sortKey === "az") return copy.sort((a, b) => a.symbol.localeCompare(b.symbol));
-  if (sortKey === "value") return copy.sort((a, b) => b.holdingsValueUsd - a.holdingsValueUsd);
-  return copy.sort(
-    (a, b) => STATUS_PRIORITY[a.status] - STATUS_PRIORITY[b.status] || a.symbol.localeCompare(b.symbol)
-  );
+  switch (sortKey) {
+    case "az":
+      return copy.sort((a, b) => dir * a.symbol.localeCompare(b.symbol));
+    case "value":
+      return copy.sort((a, b) => dir * (a.holdingsValueUsd - b.holdingsValueUsd));
+    case "status":
+      return copy.sort(
+        (a, b) => dir * (STATUS_PRIORITY[a.status] - STATUS_PRIORITY[b.status]) || a.symbol.localeCompare(b.symbol)
+      );
+  }
 }
 
 export default function TokensList({
@@ -51,26 +52,25 @@ export default function TokensList({
   marketClosed?: boolean;
 }) {
   const [sortKey, setSortKey] = useState<SortKey>("status");
-  const sorted = sortTokens(tokens, sortKey);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+
+  function toggleSort(key: SortKey) {
+    if (key === sortKey) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir(key === "value" ? "desc" : "asc");
+    }
+  }
+
+  const sorted = sortTokens(tokens, sortKey, sortDir);
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-end gap-2">
-        <label htmlFor="token-sort" className="text-xs text-muted-foreground">
-          Sort by
-        </label>
-        <select
-          id="token-sort"
-          value={sortKey}
-          onChange={(e) => setSortKey(e.target.value as SortKey)}
-          className="rounded-md border border-input bg-background px-2 py-1.5 text-xs text-foreground focus:border-primary focus:outline-none"
-        >
-          {SORT_OPTIONS.map((opt) => (
-            <option key={opt.key} value={opt.key}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
+      <div className="flex items-center justify-end gap-4 text-xs font-medium text-muted-foreground">
+        <SortableHeader label="Status" sortKey="status" activeKey={sortKey} dir={sortDir} onClick={toggleSort} fullWidth={false} />
+        <SortableHeader label="Value" sortKey="value" activeKey={sortKey} dir={sortDir} onClick={toggleSort} fullWidth={false} />
+        <SortableHeader label="Name" sortKey="az" activeKey={sortKey} dir={sortDir} onClick={toggleSort} fullWidth={false} />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
