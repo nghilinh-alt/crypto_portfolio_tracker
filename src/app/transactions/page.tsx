@@ -30,6 +30,7 @@ export default async function TransactionsPage({
         portionPct: r.sellPortionPct,
         isEligible: r.isEligible,
         triggerPrice: r.triggerPrice,
+        suggestedQty: r.suggestedSellQty,
       })),
     pendingRebuyRungs: t.ladder.rebuyRungs
       .filter((r) => r.status === "PENDING")

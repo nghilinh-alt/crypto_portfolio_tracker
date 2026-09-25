@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { formatPrice, formatUsd } from "@/lib/format";
+import { formatPrice, formatUsd, formatQty } from "@/lib/format";
 
 type RungOption = {
   id: string;
@@ -10,6 +10,8 @@ type RungOption = {
   portionPct: number;
   isEligible: boolean;
   triggerPrice: number;
+  /** Sell rungs only — % of base holdings pre-computed into an actual unit count. */
+  suggestedQty?: number;
 };
 
 export type TokenOption = {
@@ -93,7 +95,15 @@ export default function LogTransactionForm({
 function TransactionFields({ token, type }: { token: TokenOption; type: TxType }) {
   const router = useRouter();
   const [fundedBy, setFundedBy] = useState<"CASH_BUCKET" | "EXTERNAL">("CASH_BUCKET");
-  const [quantity, setQuantity] = useState("");
+  // Pre-fill with the sum of whatever sell rungs are eligible right now (same
+  // ones pre-checked below) — still a plain editable field, not locked to it.
+  const [quantity, setQuantity] = useState(() => {
+    if (type !== "SELL") return "";
+    const eligibleQty = token.pendingSellRungs
+      .filter((r) => r.isEligible)
+      .reduce((sum, r) => sum + (r.suggestedQty ?? 0), 0);
+    return eligibleQty > 0 ? String(eligibleQty) : "";
+  });
   const [pricePerUnit, setPricePerUnit] = useState(String(token.currentPrice));
   const [usdAmount, setUsdAmount] = useState(
     type === "WITHDRAW" && token.taxReserved > 0 ? String(token.taxReserved.toFixed(2)) : ""
@@ -265,7 +275,8 @@ function TransactionFields({ token, type }: { token: TokenOption; type: TxType }
           rungs={token.pendingSellRungs}
           selected={selectedSellRungs}
           onToggle={(id) => toggle(selectedSellRungs, id, setSelectedSellRungs)}
-          accentColor="text-destructive"
+          tone="negative"
+          qtySymbol={token.symbol}
         />
       )}
 
@@ -277,7 +288,7 @@ function TransactionFields({ token, type }: { token: TokenOption; type: TxType }
           rungs={token.pendingRebuyRungs}
           selected={selectedRebuyRungs}
           onToggle={(id) => toggle(selectedRebuyRungs, id, setSelectedRebuyRungs)}
-          accentColor="text-emerald-500"
+          tone="positive"
         />
       )}
 
@@ -297,6 +308,11 @@ function TransactionFields({ token, type }: { token: TokenOption; type: TxType }
   );
 }
 
+const TONE_STYLES = {
+  positive: { text: "text-emerald-500", badge: "bg-emerald-500/20 text-emerald-500 ring-emerald-500/30" },
+  negative: { text: "text-destructive", badge: "bg-destructive/20 text-destructive ring-destructive/30" },
+} as const;
+
 function RungCheckboxes({
   title,
   rungs,
@@ -304,7 +320,8 @@ function RungCheckboxes({
   onToggle,
   portionSuffix,
   sign,
-  accentColor
+  tone,
+  qtySymbol,
 }: {
   title: string;
   rungs: RungOption[];
@@ -312,8 +329,11 @@ function RungCheckboxes({
   onToggle: (id: string) => void;
   portionSuffix: string;
   sign: "+" | "-";
-  accentColor: string;
+  tone: keyof typeof TONE_STYLES;
+  /** When set, renders each rung's suggestedQty as "≈ N SYMBOL". */
+  qtySymbol?: string;
 }) {
+  const { text: accentColor, badge: badgeClass } = TONE_STYLES[tone];
   return (
     <div className="rounded-xl border border-border bg-muted/10 p-4">
       <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-3">{title}</div>
@@ -331,8 +351,14 @@ function RungCheckboxes({
               <span>(trigger {formatPrice(r.triggerPrice)})</span>
               <span className="opacity-40">|</span>
               <span>{r.portionPct}% {portionSuffix}</span>
+              {qtySymbol && r.suggestedQty !== undefined && (
+                <>
+                  <span className="opacity-40">|</span>
+                  <span className="font-mono">≈ {formatQty(r.suggestedQty)} {qtySymbol}</span>
+                </>
+              )}
               {r.isEligible && (
-                <span className={`ml-2 inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-wider font-semibold ring-1 ring-inset ${accentColor.replace('text-', 'bg-').replace('500', '500/20')} ${accentColor} ${accentColor.replace('text-', 'ring-').replace('500', '500/30')}`}>
+                <span className={`ml-2 inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-wider font-semibold ring-1 ring-inset ${badgeClass}`}>
                   eligible
                 </span>
               )}
