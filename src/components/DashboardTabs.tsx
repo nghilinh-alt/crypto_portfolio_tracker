@@ -23,6 +23,7 @@ export type DashboardToken = {
   status: TokenStatus;
   currentPrice: number;
   recentHigh: number;
+  dayChangePct: number | null;
   holdings: number;
   holdingsValueUsd: number;
   cashBucket: number;
@@ -33,6 +34,9 @@ export type DashboardToken = {
 };
 
 type Tab = "ALL" | "CRYPTO" | "STOCK" | "BULLION";
+
+/** Day change threshold (either direction) to flag a position as "on fire" or "icy" in the Active Positions list. */
+const ON_FIRE_THRESHOLD_PCT = 8;
 
 const TABS: Array<{ key: Tab; label: string }> = [
   { key: "ALL", label: "All" },
@@ -229,6 +233,8 @@ export default function DashboardTabs({
                     const gain = token.gainFromBasePct;
                     const drawdown = token.drawdownPct;
                     const gradient = getTokenColor(token.symbol);
+                    const isOnFire = token.dayChangePct !== null && token.dayChangePct >= ON_FIRE_THRESHOLD_PCT;
+                    const isIcy = token.dayChangePct !== null && token.dayChangePct <= -ON_FIRE_THRESHOLD_PCT;
 
                     return (
                       <Link key={token.id} href={assetDetailHref(token.assetType, token.id)} className="block group hover:bg-muted/40 transition-colors">
@@ -244,12 +250,36 @@ export default function DashboardTabs({
                               <div className="font-medium flex items-center gap-2 text-foreground">
                                 {token.symbol}
                                 <span className="text-xs text-muted-foreground font-normal">{token.name}</span>
+                                {isOnFire && (
+                                  <span
+                                    className="inline-flex items-center gap-0.5 rounded-full bg-orange-500/10 px-1.5 py-0.5 text-[10px] font-medium text-orange-500"
+                                    title={`Up ${formatPct(token.dayChangePct!)} since last check`}
+                                  >
+                                    🔥 +{formatPct(token.dayChangePct!)}
+                                  </span>
+                                )}
+                                {isIcy && (
+                                  <span
+                                    className="inline-flex items-center gap-0.5 rounded-full bg-sky-500/10 px-1.5 py-0.5 text-[10px] font-medium text-sky-500"
+                                    title={`Down ${formatPct(Math.abs(token.dayChangePct!))} since last check`}
+                                  >
+                                    🧊 {formatPct(token.dayChangePct!)}
+                                  </span>
+                                )}
                               </div>
                               <div className="mt-1 flex items-center justify-between gap-3">
                                 <span className="text-sm text-muted-foreground">
                                   {formatQty(token.holdings)} {token.symbol}
                                 </span>
-                                <span className="whitespace-nowrap text-sm font-medium tabular-nums text-foreground">
+                                <span
+                                  className={`whitespace-nowrap font-medium tabular-nums ${
+                                    token.currentPrice > token.basePrice
+                                      ? "text-emerald-500"
+                                      : token.currentPrice < token.basePrice
+                                        ? "text-destructive"
+                                        : "text-foreground"
+                                  }`}
+                                >
                                   {formatPrice(token.currentPrice)}
                                 </span>
                               </div>

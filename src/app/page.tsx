@@ -31,6 +31,7 @@ export default async function DashboardPage() {
     status: t.ladder.status,
     currentPrice: t.ladder.currentPrice,
     recentHigh: t.ladder.recentHigh,
+    dayChangePct: t.dayChangePct,
     holdings: t.ladder.holdings,
     holdingsValueUsd: t.ladder.holdingsValueUsd,
     cashBucket: t.ladder.cashBucket,
