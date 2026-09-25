@@ -24,6 +24,9 @@ export type WatchlistItem = {
 type Tab = "ALL" | "CRYPTO" | "STOCK" | "BULLION";
 type SortKey = "symbol" | "price" | "change" | "targetBuy" | "toTarget";
 
+/** How close (in %) the price needs to be to the target before it's flagged as a near-term buy opportunity. */
+const NEAR_TARGET_THRESHOLD_PCT = 10;
+
 const TABS: Array<{ key: Tab; label: string }> = [
   { key: "ALL", label: "All" },
   { key: "CRYPTO", label: "Crypto" },
@@ -120,6 +123,7 @@ export default function WatchlistTable({ items }: { items: WatchlistItem[] }) {
               const changeTone = change === null ? "text-muted-foreground" : change >= 0 ? "text-emerald-500" : "text-destructive";
               const distance = item.targetBuyPrice !== null ? targetDistancePct(item.currentPrice, item.targetBuyPrice) : null;
               const targetHit = distance !== null && distance <= 0;
+              const isNearTarget = distance !== null && distance > 0 && distance <= NEAR_TARGET_THRESHOLD_PCT;
 
               return (
                 <div
@@ -150,8 +154,21 @@ export default function WatchlistTable({ items }: { items: WatchlistItem[] }) {
                   <div className="text-right font-mono text-sm text-muted-foreground">
                     {item.targetBuyPrice === null ? "—" : formatPrice(item.targetBuyPrice)}
                   </div>
-                  <div className={`text-right text-sm font-medium ${targetHit ? "text-emerald-500" : "text-muted-foreground"}`}>
-                    {distance === null ? "—" : targetHit ? "Target reached" : `${formatPct(distance)} above`}
+                  <div className="text-right">
+                    {distance === null ? (
+                      <span className="text-sm font-medium text-muted-foreground">—</span>
+                    ) : targetHit ? (
+                      <span className="text-sm font-medium text-emerald-500">Target reached</span>
+                    ) : isNearTarget ? (
+                      <span
+                        className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-xs font-medium text-emerald-500"
+                        title={`Within ${formatPct(NEAR_TARGET_THRESHOLD_PCT)} of your Target Buy Price`}
+                      >
+                        🛒 {formatPct(distance)} above
+                      </span>
+                    ) : (
+                      <span className="text-sm font-medium text-muted-foreground">{formatPct(distance)} above</span>
+                    )}
                   </div>
                   <div className="flex items-center justify-end">
                     <DeleteButton
