@@ -130,6 +130,20 @@ function TransactionFields({ token, type }: { token: TokenOption; type: TxType }
     setter(next);
   }
 
+  // Sell rungs also keep Quantity in sync with whatever's checked, so
+  // selecting more than the initially-eligible ones (e.g. to log a bigger
+  // sale spanning several rungs at once) updates the total automatically.
+  function toggleSellRung(id: string) {
+    const next = new Set(selectedSellRungs);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedSellRungs(next);
+    const sumQty = token.pendingSellRungs
+      .filter((r) => next.has(r.id))
+      .reduce((sum, r) => sum + (r.suggestedQty ?? 0), 0);
+    setQuantity(sumQty > 0 ? String(sumQty) : "");
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
@@ -274,7 +288,7 @@ function TransactionFields({ token, type }: { token: TokenOption; type: TxType }
           portionSuffix="of base holdings"
           rungs={token.pendingSellRungs}
           selected={selectedSellRungs}
-          onToggle={(id) => toggle(selectedSellRungs, id, setSelectedSellRungs)}
+          onToggle={toggleSellRung}
           tone="negative"
           qtySymbol={token.symbol}
         />

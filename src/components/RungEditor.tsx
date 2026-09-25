@@ -139,7 +139,11 @@ function RungRowEditor({
   }
 
   return (
-    <tr className={`${rung.isEligible ? "bg-accent/30" : ""} group transition-colors`}>
+    <tr
+      className={`${rung.isEligible ? "bg-accent/30" : ""} ${
+        rung.status === "TRIGGERED" ? "opacity-60" : ""
+      } group transition-colors`}
+    >
       <td className="py-3 pr-3">
         <div className="flex items-center gap-1 font-mono">
           <span className={`${accentColor} font-bold`}>{pctSign}</span>
@@ -170,18 +174,22 @@ function RungRowEditor({
       </td>
       <td className="py-3 pr-3 font-mono tabular-nums text-foreground">{rung.extraValue}</td>
       <td className="py-3 pr-3">
-        <button
-          onClick={toggleStatus}
-          disabled={busy}
-          className={`rounded-md px-2.5 py-0.5 text-[10px] font-mono uppercase tracking-wider font-semibold ring-1 ring-inset transition-colors ${
-            rung.status === "TRIGGERED"
-              ? "bg-secondary text-secondary-foreground ring-border"
-              : "bg-background text-muted-foreground ring-border hover:bg-muted"
-          }`}
-          title={rung.triggeredAt ? `Triggered ${formatDate(rung.triggeredAt)}` : undefined}
-        >
-          {rung.status}
-        </button>
+        <div className="flex flex-col gap-1">
+          <button
+            onClick={toggleStatus}
+            disabled={busy}
+            className={`w-fit rounded-md px-2.5 py-0.5 text-[10px] font-mono uppercase tracking-wider font-semibold ring-1 ring-inset transition-colors ${
+              rung.status === "TRIGGERED"
+                ? "bg-secondary text-secondary-foreground ring-border"
+                : "bg-background text-muted-foreground ring-border hover:bg-muted"
+            }`}
+          >
+            {rung.status}
+          </button>
+          {rung.status === "TRIGGERED" && rung.triggeredAt && (
+            <span className="text-[10px] text-muted-foreground">{formatDate(rung.triggeredAt)}</span>
+          )}
+        </div>
       </td>
       <td className="py-3 pr-3 text-right">
         <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
