@@ -40,6 +40,11 @@
 
 body {
   background-color: var(--background);
+  background-image:
+    radial-gradient(ellipse 80% 50% at 15% -10%, rgba(37, 99, 235, 0.14), transparent 60%),
+    radial-gradient(ellipse 60% 40% at 90% 5%, rgba(37, 99, 235, 0.09), transparent 60%);
+  background-repeat: no-repeat;
+  background-attachment: fixed;
   color: var(--foreground);
   font-family: var(--font-sans);
 }
