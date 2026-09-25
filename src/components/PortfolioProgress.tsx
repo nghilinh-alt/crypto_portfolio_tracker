@@ -18,7 +18,7 @@ export type SnapshotPoint = {
   perToken: Record<string, number>; // tokenId -> holdingsValueUsd at that snapshot
 };
 
-export type TokenOption = { id: string; symbol: string; name: string };
+export type TokenOption = { id: string; symbol: string; name: string; holdingsValueUsd: number };
 
 type Timeframe = "week" | "month" | "year" | "all";
 
@@ -57,6 +57,13 @@ export default function PortfolioProgress({
   const [selectedTokenId, setSelectedTokenId] = useState<string>("all");
 
   const selectedToken = tokens.find((t) => t.id === selectedTokenId);
+
+  // Highest-value asset first, so opening the dropdown surfaces the
+  // position that matters most for whichever tab/asset-type it's showing.
+  const sortedTokenOptions = useMemo(
+    () => tokens.slice().sort((a, b) => b.holdingsValueUsd - a.holdingsValueUsd),
+    [tokens]
+  );
 
   // Short timeframes are granular enough that two points can share a
   // calendar day (e.g. testing, or refreshing more than once a week) — the
@@ -137,7 +144,7 @@ export default function PortfolioProgress({
               aria-label="Filter progress by token"
             >
               <option value="all">All portfolio</option>
-              {tokens.map((t) => (
+              {sortedTokenOptions.map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.symbol} · {t.name}
                 </option>

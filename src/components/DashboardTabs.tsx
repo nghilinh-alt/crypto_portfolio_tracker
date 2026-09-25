@@ -285,7 +285,7 @@ export default function DashboardTabs({
         <div className="space-y-8">
           <PortfolioProgress
             snapshots={snapshots}
-            tokens={filtered.map((t) => ({ id: t.id, symbol: t.symbol, name: t.name }))}
+            tokens={filtered.map((t) => ({ id: t.id, symbol: t.symbol, name: t.name, holdingsValueUsd: t.holdingsValueUsd }))}
             mode={tab === "ALL" ? "total" : "sum-tokens"}
           />
 
