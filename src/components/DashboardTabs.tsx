@@ -76,6 +76,7 @@ export default function DashboardTabs({
   const [tab, setTab] = useState<Tab>("ALL");
   const [sortKey, setSortKey] = useState<PositionSortKey>("value");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [hideZeroValue, setHideZeroValue] = useState(false);
 
   function toggleSort(key: PositionSortKey) {
     if (key === sortKey) {
@@ -108,6 +109,10 @@ export default function DashboardTabs({
       }
     });
   }, [filtered, sortKey, sortDir]);
+
+  const visiblePositions = hideZeroValue
+    ? sortedPositions.filter((t) => t.holdingsValueUsd > 0)
+    : sortedPositions;
 
   const totals = useMemo(
     () =>
@@ -239,17 +244,33 @@ export default function DashboardTabs({
                 <h2 className="text-2xl font-display font-medium flex items-center gap-3">
                   <span className="text-sm font-mono text-muted-foreground">02</span>
                   Active Positions
-                  <span className="text-base font-normal text-muted-foreground">({filtered.length})</span>
+                  <span className="text-base font-normal text-muted-foreground">({visiblePositions.length})</span>
                 </h2>
                 {categoryBreakdown && (
                   <p className="mt-1 pl-7 text-xs text-muted-foreground">{categoryBreakdown}</p>
                 )}
               </div>
-              <Link href={addHref} className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-                Manage all
-              </Link>
+              <div className="flex items-center gap-4">
+                <label className="flex cursor-pointer select-none items-center gap-2 text-sm text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    checked={hideZeroValue}
+                    onChange={(e) => setHideZeroValue(e.target.checked)}
+                    className="h-4 w-4 rounded border-input text-primary focus:ring-1 focus:ring-primary"
+                  />
+                  Hide $0 assets
+                </label>
+                <Link href={addHref} className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                  Manage all
+                </Link>
+              </div>
             </div>
 
+            {visiblePositions.length === 0 ? (
+              <p className="rounded-2xl border border-dashed border-border bg-card/50 p-8 text-center text-sm text-muted-foreground">
+                Nothing to show — every position here is $0.
+              </p>
+            ) : (
             <div className="overflow-hidden rounded-2xl border border-border bg-card">
               <div className={`hidden xl:grid ${POSITION_GRID_COLS} gap-6 border-b border-border/60 bg-muted/30 px-6 py-3 text-[10px] font-mono uppercase tracking-wider text-muted-foreground`}>
                 <SortableHeader
@@ -266,7 +287,7 @@ export default function DashboardTabs({
               </div>
 
               <div className="divide-y divide-border/50">
-                {sortedPositions.map((token) => {
+                {visiblePositions.map((token) => {
                     const value = token.holdingsValueUsd;
                     const allocation = totalValue > 0 ? (value / totalValue) * 100 : 0;
                     const gain = token.gainFromBasePct;
@@ -356,6 +377,7 @@ export default function DashboardTabs({
                   })}
               </div>
             </div>
+            )}
           </div>
 
           <div className="space-y-6">
