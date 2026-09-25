@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import TokenAvatar from "./TokenAvatar";
 import DeleteButton from "./DeleteButton";
+import SortableHeader from "./SortableHeader";
 import { formatPrice, formatPct } from "@/lib/format";
 import { assetDetailHref } from "@/lib/assetRoute";
 
@@ -21,20 +22,13 @@ export type WatchlistItem = {
 };
 
 type Tab = "ALL" | "CRYPTO" | "STOCK" | "BULLION";
-type SortKey = "az" | "change" | "price" | "target";
+type SortKey = "symbol" | "price" | "change" | "targetBuy" | "toTarget";
 
 const TABS: Array<{ key: Tab; label: string }> = [
   { key: "ALL", label: "All" },
   { key: "CRYPTO", label: "Crypto" },
   { key: "STOCK", label: "Stocks" },
   { key: "BULLION", label: "Bullion" },
-];
-
-const SORT_OPTIONS: Array<{ key: SortKey; label: string }> = [
-  { key: "az", label: "Name (A → Z)" },
-  { key: "change", label: "Day Change (high → low)" },
-  { key: "price", label: "Price (high → low)" },
-  { key: "target", label: "Closest to Target" },
 ];
 
 /** % the price still needs to drop to reach the target — negative once
@@ -44,64 +38,64 @@ function targetDistancePct(currentPrice: number, targetBuyPrice: number): number
   return ((currentPrice - targetBuyPrice) / currentPrice) * 100;
 }
 
-function sortItems(items: WatchlistItem[], sortKey: SortKey): WatchlistItem[] {
+function toTargetDistance(item: WatchlistItem): number {
+  return item.targetBuyPrice === null ? Infinity : (targetDistancePct(item.currentPrice, item.targetBuyPrice) ?? Infinity);
+}
+
+function sortItems(items: WatchlistItem[], sortKey: SortKey, sortDir: "asc" | "desc"): WatchlistItem[] {
+  const dir = sortDir === "asc" ? 1 : -1;
   const copy = [...items];
-  if (sortKey === "az") return copy.sort((a, b) => a.symbol.localeCompare(b.symbol));
-  if (sortKey === "price") return copy.sort((a, b) => b.currentPrice - a.currentPrice);
-  if (sortKey === "target") {
-    const dist = (i: WatchlistItem) =>
-      i.targetBuyPrice === null ? Infinity : (targetDistancePct(i.currentPrice, i.targetBuyPrice) ?? Infinity);
-    return copy.sort((a, b) => dist(a) - dist(b));
+  switch (sortKey) {
+    case "symbol":
+      return copy.sort((a, b) => dir * a.symbol.localeCompare(b.symbol));
+    case "price":
+      return copy.sort((a, b) => dir * (a.currentPrice - b.currentPrice));
+    case "targetBuy":
+      return copy.sort((a, b) => dir * ((a.targetBuyPrice ?? -Infinity) - (b.targetBuyPrice ?? -Infinity)));
+    case "toTarget":
+      return copy.sort((a, b) => dir * (toTargetDistance(a) - toTargetDistance(b)));
+    case "change":
+      return copy.sort((a, b) => dir * ((a.dayChangePct ?? -Infinity) - (b.dayChangePct ?? -Infinity)));
   }
-  return copy.sort((a, b) => (b.dayChangePct ?? -Infinity) - (a.dayChangePct ?? -Infinity));
 }
 
 export default function WatchlistTable({ items }: { items: WatchlistItem[] }) {
   const [tab, setTab] = useState<Tab>("ALL");
   const [sortKey, setSortKey] = useState<SortKey>("change");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
+  function toggleSort(key: SortKey) {
+    if (key === sortKey) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir(key === "symbol" || key === "toTarget" ? "asc" : "desc");
+    }
+  }
 
   const filtered = useMemo(
     () => (tab === "ALL" ? items : items.filter((i) => i.assetType === tab)),
     [items, tab]
   );
-  const sorted = useMemo(() => sortItems(filtered, sortKey), [filtered, sortKey]);
+  const sorted = useMemo(() => sortItems(filtered, sortKey, sortDir), [filtered, sortKey, sortDir]);
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="grid grid-cols-2 gap-1 rounded-xl bg-muted p-1 sm:flex">
-          {TABS.map((option) => (
-            <button
-              key={option.key}
-              type="button"
-              onClick={() => setTab(option.key)}
-              className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-                tab === option.key
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
-        <div className="flex items-center justify-end gap-2">
-          <label htmlFor="watchlist-sort" className="text-xs text-muted-foreground">
-            Sort by
-          </label>
-          <select
-            id="watchlist-sort"
-            value={sortKey}
-            onChange={(e) => setSortKey(e.target.value as SortKey)}
-            className="rounded-md border border-input bg-background px-2 py-1.5 text-xs text-foreground focus:border-primary focus:outline-none"
+      <div className="grid grid-cols-2 gap-1 rounded-xl bg-muted p-1 sm:flex sm:w-fit">
+        {TABS.map((option) => (
+          <button
+            key={option.key}
+            type="button"
+            onClick={() => setTab(option.key)}
+            className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+              tab === option.key
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
           >
-            {SORT_OPTIONS.map((opt) => (
-              <option key={opt.key} value={opt.key}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-        </div>
+            {option.label}
+          </button>
+        ))}
       </div>
 
       {sorted.length === 0 ? (
@@ -111,13 +105,13 @@ export default function WatchlistTable({ items }: { items: WatchlistItem[] }) {
       ) : (
         <div className="overflow-hidden rounded-2xl border border-border bg-card">
           <div className="hidden md:grid grid-cols-[minmax(200px,1.8fr)_.6fr_.8fr_.8fr_1fr_.8fr_1fr_auto] gap-4 border-b border-border/60 bg-muted/30 px-6 py-3 text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
-            <span>Asset</span>
+            <SortableHeader label="Asset" sortKey="symbol" activeKey={sortKey} dir={sortDir} onClick={toggleSort} />
             <span>Type</span>
-            <span className="text-right">Price</span>
-            <span className="text-right">Day Change</span>
+            <SortableHeader label="Price" sortKey="price" activeKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
+            <SortableHeader label="Day Change" sortKey="change" activeKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
             <span className="text-right">Day Range</span>
-            <span className="text-right">Target Buy</span>
-            <span className="text-right">To Target</span>
+            <SortableHeader label="Target Buy" sortKey="targetBuy" activeKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
+            <SortableHeader label="To Target" sortKey="toTarget" activeKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
             <span />
           </div>
           <div className="divide-y divide-border/50">

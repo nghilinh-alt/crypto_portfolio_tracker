@@ -6,6 +6,7 @@ import StatusBadge from "./StatusBadge";
 import PortfolioProgress, { type SnapshotPoint } from "./PortfolioProgress";
 import PortfolioCashPool from "./PortfolioCashPool";
 import TokenAvatar from "./TokenAvatar";
+import SortableHeader from "./SortableHeader";
 import { formatUsd, formatPrice, formatPct, formatQty } from "@/lib/format";
 import type { TokenStatus } from "@/lib/ladder";
 import { assetDetailHref } from "@/lib/assetRoute";
@@ -251,17 +252,17 @@ export default function DashboardTabs({
 
             <div className="overflow-hidden rounded-2xl border border-border bg-card">
               <div className={`hidden xl:grid ${POSITION_GRID_COLS} gap-6 border-b border-border/60 bg-muted/30 px-6 py-3 text-[10px] font-mono uppercase tracking-wider text-muted-foreground`}>
-                <PositionSortHeader
+                <SortableHeader
                   label={tab === "STOCK" ? "Stock" : tab === "BULLION" ? "Bullion" : "Token"}
                   sortKey="symbol"
                   activeKey={sortKey}
                   dir={sortDir}
                   onClick={toggleSort}
                 />
-                <PositionSortHeader label="Current price" sortKey="currentPrice" activeKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
-                <PositionSortHeader label="Base price" sortKey="basePrice" activeKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
-                <PositionSortHeader label="Recent high" sortKey="recentHigh" activeKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
-                <PositionSortHeader label="Value" sortKey="value" activeKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
+                <SortableHeader label="Current price" sortKey="currentPrice" activeKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
+                <SortableHeader label="Base price" sortKey="basePrice" activeKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
+                <SortableHeader label="Recent high" sortKey="recentHigh" activeKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
+                <SortableHeader label="Value" sortKey="value" activeKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
               </div>
 
               <div className="divide-y divide-border/50">
@@ -404,39 +405,6 @@ export default function DashboardTabs({
         </div>
       )}
     </div>
-  );
-}
-
-function PositionSortHeader({
-  label,
-  sortKey,
-  activeKey,
-  dir,
-  onClick,
-  align = "left",
-}: {
-  label: string;
-  sortKey: PositionSortKey;
-  activeKey: PositionSortKey;
-  dir: "asc" | "desc";
-  onClick: (key: PositionSortKey) => void;
-  align?: "left" | "right";
-}) {
-  const active = activeKey === sortKey;
-  const arrow = <span className="text-[8px]">{dir === "asc" ? "▲" : "▼"}</span>;
-
-  return (
-    <button
-      type="button"
-      onClick={() => onClick(sortKey)}
-      className={`flex w-full items-center gap-1 transition-colors hover:text-foreground ${
-        align === "right" ? "justify-end" : "justify-start"
-      } ${active ? "text-foreground" : ""}`}
-    >
-      {align === "right" && active && arrow}
-      <span>{label}</span>
-      {align === "left" && active && arrow}
-    </button>
   );
 }
 
