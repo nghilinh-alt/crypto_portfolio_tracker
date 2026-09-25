@@ -5,10 +5,13 @@ import Link from "next/link";
 import StatusBadge from "./StatusBadge";
 import PortfolioProgress, { type SnapshotPoint } from "./PortfolioProgress";
 import PortfolioCashPool from "./PortfolioCashPool";
+import TargetGoalPanel from "./TargetGoalPanel";
+import PastResultsPanel from "./PastResultsPanel";
 import TokenAvatar from "./TokenAvatar";
 import SortableHeader from "./SortableHeader";
 import { formatUsd, formatPrice, formatPct, formatQty } from "@/lib/format";
 import type { TokenStatus } from "@/lib/ladder";
+import type { PeriodPerformance } from "@/lib/periodPerformance";
 import { assetDetailHref } from "@/lib/assetRoute";
 
 export type DashboardToken = {
@@ -68,10 +71,14 @@ export default function DashboardTabs({
   tokens,
   snapshots,
   poolBalance,
+  targetValueUsd,
+  periodPerformance,
 }: {
   tokens: DashboardToken[];
   snapshots: SnapshotPoint[];
   poolBalance: number;
+  targetValueUsd: number | null;
+  periodPerformance: PeriodPerformance;
 }) {
   const [tab, setTab] = useState<Tab>("ALL");
   const [sortKey, setSortKey] = useState<PositionSortKey>("value");
@@ -90,6 +97,15 @@ export default function DashboardTabs({
   const filtered = useMemo(
     () => (tab === "ALL" ? tokens : tokens.filter((t) => t.assetType === tab)),
     [tokens, tab]
+  );
+
+  // Target Goal/Past Results describe the whole portfolio regardless of
+  // which asset-type tab is selected, so they're derived from the
+  // unfiltered `tokens`, not `filtered` — matching the same total-value
+  // formula used to capture a PortfolioSnapshot (see lib/snapshot.ts).
+  const wholePortfolioValue = useMemo(
+    () => tokens.reduce((sum, t) => sum + t.holdingsValueUsd + t.cashBucket, 0) + poolBalance,
+    [tokens, poolBalance]
   );
 
   const sortedPositions = useMemo(() => {
@@ -227,6 +243,11 @@ export default function DashboardTabs({
           </div>
         </div>
       )}
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <TargetGoalPanel currentValue={wholePortfolioValue} initialTargetValueUsd={targetValueUsd} />
+        <PastResultsPanel performance={periodPerformance} />
+      </div>
 
       {filtered.length === 0 ? (
         <EmptyState assetNounPlural={assetNounPlural} href={addHref} />

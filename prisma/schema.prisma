@@ -171,6 +171,15 @@ model RebuyRung {
   @@unique([tokenId, order])
 }
 
+// Singleton row (id always 1) for whole-portfolio settings that don't
+// belong to any single token — currently just the Target Goal shown on
+// the Dashboard.
+model PortfolioSettings {
+  id             Int      @id @default(1)
+  targetValueUsd Float?
+  updatedAt      DateTime @updatedAt
+}
+
 // One row per weekly price refresh, capturing the portfolio's total value
 // at that moment — the basis for the Dashboard's Portfolio Progress chart.
 // Never recomputed retroactively; a point in history stays what it was.

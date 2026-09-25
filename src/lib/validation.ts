@@ -206,3 +206,8 @@ export const poolToTokenSchema = z.object({
   amount: z.number().positive(),
   note: z.string().trim().max(500).optional().nullable(),
 });
+
+// Whole-portfolio settings (currently just the Target Goal). null clears it.
+export const updatePortfolioSettingsSchema = z.object({
+  targetValueUsd: z.number().positive().nullable(),
+});
