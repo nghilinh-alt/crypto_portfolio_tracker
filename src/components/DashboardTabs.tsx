@@ -81,7 +81,7 @@ export default function DashboardTabs({
   poolBalance: number;
   targetValueUsd: number | null;
 }) {
-  const [tab, setTab] = useState<Tab>("ALL");
+  const [tab, setTab] = useState<Tab>("CRYPTO");
   const [sortKey, setSortKey] = useState<PositionSortKey>("value");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [hideZeroValue, setHideZeroValue] = useState(false);
