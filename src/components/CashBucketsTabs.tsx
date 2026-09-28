@@ -51,6 +51,11 @@ export default function CashBucketsTabs({
     [tokens, tab]
   );
 
+  const sortedByCashBucket = useMemo(
+    () => filtered.slice().sort((a, b) => b.cashBucket - a.cashBucket),
+    [filtered]
+  );
+
   const totals = useMemo(
     () =>
       filtered.reduce(
@@ -122,7 +127,7 @@ export default function CashBucketsTabs({
               <span className="text-right">Tax Reserved</span>
             </div>
             <div className="divide-y divide-border/50">
-              {filtered.map((t) => (
+              {sortedByCashBucket.map((t) => (
                 <Link
                   key={t.id}
                   href={assetDetailHref(t.assetType, t.id)}
