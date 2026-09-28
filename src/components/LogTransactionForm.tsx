@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatPrice, formatUsd, formatQty } from "@/lib/format";
 
@@ -19,6 +19,7 @@ export type TokenOption = {
   symbol: string;
   name: string;
   currentPrice: number;
+  holdingsValueUsd: number;
   cashBucket: number;
   taxReserved: number;
   pendingSellRungs: RungOption[];
@@ -47,6 +48,13 @@ export default function LogTransactionForm({
   const [type, setType] = useState<TxType>(initialType ?? "BUY");
   const token = tokens.find((t) => t.id === tokenId);
 
+  // Highest-value asset first, so the token you're most likely logging
+  // against is right at the top instead of buried in status/alpha order.
+  const sortedTokens = useMemo(
+    () => tokens.slice().sort((a, b) => b.holdingsValueUsd - a.holdingsValueUsd),
+    [tokens]
+  );
+
   if (tokens.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-border bg-card/50 p-8 text-center text-sm text-muted-foreground">
@@ -65,12 +73,17 @@ export default function LogTransactionForm({
             onChange={(e) => setTokenId(e.target.value)}
             className="block w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary h-10"
           >
-            {tokens.map((t) => (
+            {sortedTokens.map((t) => (
               <option key={t.id} value={t.id}>
                 {t.symbol}
               </option>
             ))}
           </select>
+          {token && (
+            <span className="block text-[10px] text-muted-foreground">
+              Cash Bucket: {formatUsd(token.cashBucket)}
+            </span>
+          )}
         </label>
         <label className="block space-y-1.5">
           <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Type</span>

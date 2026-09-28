@@ -20,6 +20,7 @@ export default async function TransactionsPage({
     symbol: t.symbol,
     name: t.name,
     currentPrice: t.currentPrice,
+    holdingsValueUsd: t.ladder.holdingsValueUsd,
     cashBucket: t.ladder.cashBucket,
     taxReserved: t.ladder.taxReserved,
     pendingSellRungs: t.ladder.sellRungs
