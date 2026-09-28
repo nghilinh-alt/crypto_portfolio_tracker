@@ -44,16 +44,16 @@ export default function LogTransactionForm({
   initialTokenId?: string;
   initialType?: TxType;
 }) {
-  const [tokenId, setTokenId] = useState(initialTokenId ?? tokens[0]?.id ?? "");
-  const [type, setType] = useState<TxType>(initialType ?? "BUY");
-  const token = tokens.find((t) => t.id === tokenId);
-
   // Highest-value asset first, so the token you're most likely logging
   // against is right at the top instead of buried in status/alpha order.
   const sortedTokens = useMemo(
     () => tokens.slice().sort((a, b) => b.holdingsValueUsd - a.holdingsValueUsd),
     [tokens]
   );
+
+  const [tokenId, setTokenId] = useState(initialTokenId ?? sortedTokens[0]?.id ?? "");
+  const [type, setType] = useState<TxType>(initialType ?? "BUY");
+  const token = tokens.find((t) => t.id === tokenId);
 
   if (tokens.length === 0) {
     return (
