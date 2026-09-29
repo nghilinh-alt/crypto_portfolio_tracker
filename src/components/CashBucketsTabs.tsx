@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import TokenAvatar from "./TokenAvatar";
 import PortfolioCashPool from "./PortfolioCashPool";
+import TaxPaymentPanel from "./TaxPaymentPanel";
 import { formatUsd, formatDate } from "@/lib/format";
 import { assetDetailHref } from "@/lib/assetRoute";
 
@@ -39,10 +40,12 @@ export default function CashBucketsTabs({
   tokens,
   poolBalance,
   poolTransactions,
+  totalTaxPaid,
 }: {
   tokens: CashBucketToken[];
   poolBalance: number;
   poolTransactions: PoolTransaction[];
+  totalTaxPaid: number;
 }) {
   const [tab, setTab] = useState<Tab>("ALL");
 
@@ -91,7 +94,7 @@ export default function CashBucketsTabs({
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <SummaryTile
           label={tab === "ALL" ? "Total Cash Bucket" : "Cash Bucket"}
           value={formatUsd(totals.cashBucket)}
@@ -103,10 +106,13 @@ export default function CashBucketsTabs({
           sub="Withheld from realized profit"
         />
         {tab === "ALL" && (
-          <PortfolioCashPool
-            balance={poolBalance}
-            tokens={tokens.map((t) => ({ id: t.id, symbol: t.symbol }))}
-          />
+          <>
+            <PortfolioCashPool
+              balance={poolBalance}
+              tokens={tokens.map((t) => ({ id: t.id, symbol: t.symbol }))}
+            />
+            <TaxPaymentPanel totalReserved={totals.taxReserved} totalPaid={totalTaxPaid} />
+          </>
         )}
       </div>
 

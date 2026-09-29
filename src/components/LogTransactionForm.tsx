@@ -66,25 +66,22 @@ export default function LogTransactionForm({
   return (
     <div className="rounded-2xl border border-border bg-card p-6">
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 mb-6">
-        <label className="block space-y-1.5">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Token</span>
-          <select
-            value={tokenId}
-            onChange={(e) => setTokenId(e.target.value)}
-            className="block w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary h-10"
-          >
-            {sortedTokens.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.symbol}
-              </option>
-            ))}
-          </select>
-          {token && (
-            <span className="block text-[10px] text-muted-foreground">
-              Cash Bucket: {formatUsd(token.cashBucket)}
-            </span>
-          )}
-        </label>
+        {type !== "DEPOSIT" && (
+          <label className="block space-y-1.5">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Token</span>
+            <select
+              value={tokenId}
+              onChange={(e) => setTokenId(e.target.value)}
+              className="block w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary h-10"
+            >
+              {sortedTokens.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.symbol}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <label className="block space-y-1.5">
           <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Type</span>
           <select
@@ -98,10 +95,115 @@ export default function LogTransactionForm({
             <option value="WITHDRAW">WITHDRAW</option>
           </select>
         </label>
+        {type !== "DEPOSIT" && token && (
+          <div className="block space-y-1.5 sm:col-start-4">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Cash Bucket</span>
+            <div className="flex h-10 items-center rounded-md border border-border/50 bg-muted/20 px-3 py-2 text-sm font-mono text-foreground">
+              {formatUsd(token.cashBucket)}
+            </div>
+          </div>
+        )}
       </div>
 
-      {token && <TransactionFields key={`${token.id}:${type}`} token={token} type={type} />}
+      {type === "DEPOSIT" ? (
+        <DepositToPoolFields key="deposit" />
+      ) : (
+        token && <TransactionFields key={`${token.id}:${type}`} token={token} type={type} />
+      )}
     </div>
+  );
+}
+
+function DepositToPoolFields() {
+  const router = useRouter();
+  const [usdAmount, setUsdAmount] = useState("");
+  const [note, setNote] = useState("");
+  const [occurredAt, setOccurredAt] = useState(() => toDatetimeLocal(new Date()));
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const res = await fetch("/api/cash-pool", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: Number(usdAmount),
+          note: note || undefined,
+          occurredAt: new Date(occurredAt).toISOString(),
+        }),
+      });
+      const body = await res.json();
+      if (!res.ok) {
+        setError(body.error ?? "Failed to log deposit");
+        return;
+      }
+      setSuccess("Deposited to the Portfolio Cash Pool.");
+      setUsdAmount("");
+      setNote("");
+      router.refresh();
+    } catch {
+      setError("Failed to log deposit");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 border-t border-border/50 pt-6">
+        <label className="block space-y-1.5">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">When</span>
+          <input
+            type="datetime-local"
+            value={occurredAt}
+            onChange={(e) => setOccurredAt(e.target.value)}
+            className="block w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary h-10"
+          />
+        </label>
+        <label className="block space-y-1.5">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Amount (USD)</span>
+          <input
+            type="number"
+            step="any"
+            value={usdAmount}
+            onChange={(e) => setUsdAmount(e.target.value)}
+            required
+            className="block w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary h-10"
+          />
+          <span className="text-[10px] text-muted-foreground/70">
+            Goes to the untethered Portfolio Cash Pool — assign it to a token later from Cash Buckets.
+          </span>
+        </label>
+        <label className="col-span-2 block space-y-1.5 sm:col-span-2">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Note (Optional)</span>
+          <input
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            className="block w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary h-10"
+            placeholder="Add any context or reasoning here..."
+          />
+        </label>
+      </div>
+
+      {error && <p className="text-sm text-destructive">{error}</p>}
+      {success && <p className="text-sm text-emerald-500">{success}</p>}
+
+      <div className="pt-2">
+        <button
+          type="submit"
+          disabled={busy}
+          className="rounded-md bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors w-full sm:w-auto"
+        >
+          {busy ? "Logging…" : "Log Transaction"}
+        </button>
+      </div>
+    </form>
   );
 }
 
@@ -275,10 +377,11 @@ function TransactionFields({ token, type }: { token: TokenOption; type: TxType }
                 className="block w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary h-10"
               />
             </label>
-            <div className="flex items-end h-10 text-sm text-foreground font-mono bg-muted/20 px-3 py-2 rounded-md border border-border/50">
-              {computedUsd !== undefined && !Number.isNaN(computedUsd)
-                ? `= ${formatUsd(computedUsd)}`
-                : "Total"}
+            <div className="block space-y-1.5 sm:col-start-4">
+              <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Total (USD)</span>
+              <div className="flex h-10 items-center rounded-md border border-border/50 bg-muted/20 px-3 py-2 text-sm font-mono text-foreground">
+                {computedUsd !== undefined && !Number.isNaN(computedUsd) ? formatUsd(computedUsd) : "—"}
+              </div>
             </div>
           </>
         )}

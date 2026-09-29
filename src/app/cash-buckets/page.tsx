@@ -1,14 +1,16 @@
 import { getAllTokensWithLadder } from "@/lib/data";
 import { getPortfolioCashPoolBalance, getPortfolioCashTransactions } from "@/lib/cashPool";
+import { getTotalTaxPaid } from "@/lib/tax";
 import CashBucketsTabs from "@/components/CashBucketsTabs";
 
 export const dynamic = "force-dynamic";
 
 export default async function CashBucketsPage() {
-  const [tokens, poolBalance, poolTransactions] = await Promise.all([
+  const [tokens, poolBalance, poolTransactions, totalTaxPaid] = await Promise.all([
     getAllTokensWithLadder(),
     getPortfolioCashPoolBalance(),
     getPortfolioCashTransactions(50),
+    getTotalTaxPaid(),
   ]);
 
   return (
@@ -41,6 +43,7 @@ export default async function CashBucketsPage() {
           tokenSymbol: tx.token?.symbol ?? null,
           note: tx.note,
         }))}
+        totalTaxPaid={totalTaxPaid}
       />
     </div>
   );

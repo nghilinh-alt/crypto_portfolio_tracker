@@ -1,0 +1,8 @@
+-- CreateTable
+CREATE TABLE "TaxPayment" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "amount" REAL NOT NULL,
+    "note" TEXT,
+    "occurredAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

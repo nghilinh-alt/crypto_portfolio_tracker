@@ -207,6 +207,22 @@ export const poolToTokenSchema = z.object({
   note: z.string().trim().max(500).optional().nullable(),
 });
 
+// External money deposited straight into the untethered portfolio pool —
+// not tied to any one token until it's later assigned.
+export const depositToPoolSchema = z.object({
+  amount: z.number().positive(),
+  note: z.string().trim().max(500).optional().nullable(),
+  occurredAt: z.string().datetime().optional(),
+});
+
+// A real-world tax payment covering realized profit withheld across ALL
+// tokens at once (e.g. an EOFY payment) — not tied to any single token.
+export const createTaxPaymentSchema = z.object({
+  amount: z.number().positive(),
+  note: z.string().trim().max(500).optional().nullable(),
+  occurredAt: z.string().datetime().optional(),
+});
+
 // Whole-portfolio settings (currently just the Target Goal). null clears it.
 export const updatePortfolioSettingsSchema = z.object({
   targetValueUsd: z.number().positive().nullable(),

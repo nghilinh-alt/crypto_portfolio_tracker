@@ -24,8 +24,6 @@ export default function CashBucketActions({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  if (cashBucket <= 0) return null;
-
   async function submit() {
     const amt = Number(amount);
     if (!amt || amt <= 0) return;

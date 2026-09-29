@@ -253,3 +253,16 @@ model PortfolioCashTransaction {
 
   @@index([tokenId])
 }
+
+// A real-world tax payment made to cover realized profit withheld across
+// ALL tokens' running taxReserved totals — paid as one lump sum (e.g. for
+// EOFY), not per-token. "Tax owing" is always derived as
+// Σ every token's taxReserved − Σ TaxPayment.amount, never stored, matching
+// every other balance in this app.
+model TaxPayment {
+  id         String   @id @default(cuid())
+  amount     Float
+  note       String?
+  occurredAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+}
