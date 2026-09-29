@@ -1,16 +1,17 @@
 import { getAllTokensWithLadder } from "@/lib/data";
 import { getPortfolioCashPoolBalance, getPortfolioCashTransactions } from "@/lib/cashPool";
-import { getTotalTaxPaid } from "@/lib/tax";
+import { getTotalTaxPaid, getTaxPayments } from "@/lib/tax";
 import CashBucketsTabs from "@/components/CashBucketsTabs";
 
 export const dynamic = "force-dynamic";
 
 export default async function CashBucketsPage() {
-  const [tokens, poolBalance, poolTransactions, totalTaxPaid] = await Promise.all([
+  const [tokens, poolBalance, poolTransactions, totalTaxPaid, taxPayments] = await Promise.all([
     getAllTokensWithLadder(),
     getPortfolioCashPoolBalance(),
     getPortfolioCashTransactions(50),
     getTotalTaxPaid(),
+    getTaxPayments(50),
   ]);
 
   return (
@@ -44,6 +45,12 @@ export default async function CashBucketsPage() {
           note: tx.note,
         }))}
         totalTaxPaid={totalTaxPaid}
+        taxPayments={taxPayments.map((p) => ({
+          id: p.id,
+          occurredAt: p.occurredAt.toISOString(),
+          amount: p.amount,
+          note: p.note,
+        }))}
       />
     </div>
   );

@@ -5,6 +5,7 @@ import Link from "next/link";
 import TokenAvatar from "./TokenAvatar";
 import PortfolioCashPool from "./PortfolioCashPool";
 import TaxPaymentPanel from "./TaxPaymentPanel";
+import WithdrawAllButton from "./WithdrawAllButton";
 import { formatUsd, formatDate } from "@/lib/format";
 import { assetDetailHref } from "@/lib/assetRoute";
 
@@ -27,6 +28,13 @@ export type PoolTransaction = {
   note: string | null;
 };
 
+export type TaxPaymentRow = {
+  id: string;
+  occurredAt: string; // ISO
+  amount: number;
+  note: string | null;
+};
+
 type Tab = "ALL" | "CRYPTO" | "STOCK" | "BULLION";
 
 const TABS: Array<{ key: Tab; label: string }> = [
@@ -41,11 +49,13 @@ export default function CashBucketsTabs({
   poolBalance,
   poolTransactions,
   totalTaxPaid,
+  taxPayments,
 }: {
   tokens: CashBucketToken[];
   poolBalance: number;
   poolTransactions: PoolTransaction[];
   totalTaxPaid: number;
+  taxPayments: TaxPaymentRow[];
 }) {
   const [tab, setTab] = useState<Tab>("ALL");
 
@@ -112,6 +122,11 @@ export default function CashBucketsTabs({
               tokens={tokens.map((t) => ({ id: t.id, symbol: t.symbol }))}
             />
             <TaxPaymentPanel totalReserved={totals.taxReserved} totalPaid={totalTaxPaid} />
+            <WithdrawAllButton
+              totalCashBucket={totals.cashBucket}
+              poolBalance={poolBalance}
+              tokenCount={tokens.filter((t) => t.cashBucket > 0).length}
+            />
           </>
         )}
       </div>
@@ -184,6 +199,37 @@ export default function CashBucketsTabs({
                     <span className="text-right font-mono text-foreground">{formatUsd(tx.amount)}</span>
                     <span className="text-muted-foreground">{tx.tokenSymbol ?? "—"}</span>
                     <span className="truncate text-muted-foreground">{tx.note ?? "—"}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === "ALL" && (
+        <div className="space-y-4">
+          <h2 className="text-2xl font-display font-medium text-foreground">Tax Payments</h2>
+          {taxPayments.length === 0 ? (
+            <p className="rounded-2xl border border-dashed border-border bg-card/50 p-8 text-center text-sm text-muted-foreground">
+              No tax payments logged yet.
+            </p>
+          ) : (
+            <div className="overflow-hidden rounded-2xl border border-border bg-card">
+              <div className="hidden md:grid grid-cols-[1.4fr_1fr_2fr] gap-4 border-b border-border/60 bg-muted/30 px-6 py-3 text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
+                <span>Date</span>
+                <span className="text-right">Amount</span>
+                <span>Note</span>
+              </div>
+              <div className="divide-y divide-border/50">
+                {taxPayments.map((p) => (
+                  <div
+                    key={p.id}
+                    className="grid grid-cols-2 items-center gap-4 px-6 py-3 text-sm md:grid-cols-[1.4fr_1fr_2fr]"
+                  >
+                    <span className="text-muted-foreground">{formatDate(p.occurredAt)}</span>
+                    <span className="text-right font-mono text-foreground">{formatUsd(p.amount)}</span>
+                    <span className="truncate text-muted-foreground">{p.note ?? "—"}</span>
                   </div>
                 ))}
               </div>

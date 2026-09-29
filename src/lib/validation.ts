@@ -215,6 +215,22 @@ export const depositToPoolSchema = z.object({
   occurredAt: z.string().datetime().optional(),
 });
 
+// Money actually leaving the strategy straight from the untethered pool —
+// the pool-only counterpart to a token's own WITHDRAW.
+export const withdrawFromPoolSchema = z.object({
+  amount: z.number().positive(),
+  note: z.string().trim().max(500).optional().nullable(),
+});
+
+// Withdraw across every token's Cash Bucket plus the pool balance in one go.
+// If `amount` is omitted, withdraws everything; if given (must be <= the
+// total available), each bucket and the pool are drawn down by the same
+// proportion, so a partial withdrawal reduces every bucket by the same %.
+export const withdrawAllSchema = z.object({
+  amount: z.number().positive().optional(),
+  note: z.string().trim().max(500).optional().nullable(),
+});
+
 // A real-world tax payment covering realized profit withheld across ALL
 // tokens at once (e.g. an EOFY payment) — not tied to any single token.
 export const createTaxPaymentSchema = z.object({
