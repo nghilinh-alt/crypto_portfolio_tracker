@@ -59,7 +59,11 @@ export default function ActionCentreTabs({
     [tokens, tab]
   );
   const actionable = filtered.filter((t) => t.status === "SELL" || t.status === "BUY");
-  const watching = filtered.filter((t) => t.status === "WATCH");
+  // Closest to triggering first — the whole point of a watchlist is to see
+  // what needs attention soonest, not an arbitrary/alphabetical order.
+  const watching = filtered
+    .filter((t) => t.status === "WATCH")
+    .sort((a, b) => (a.nearestWatch?.distancePct ?? Infinity) - (b.nearestWatch?.distancePct ?? Infinity));
 
   return (
     <>
