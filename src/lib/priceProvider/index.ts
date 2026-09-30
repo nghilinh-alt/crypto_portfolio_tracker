@@ -2,6 +2,7 @@ import { coingeckoProvider } from "./coingecko";
 import { bybitProvider } from "./bybit";
 import { finnhubProvider } from "./finnhub";
 import { goldapiProvider } from "./goldapi";
+import { metalPriceApiProvider } from "./metalPriceApi";
 import type { PriceResult, PriceTarget } from "./types";
 
 export type { PriceProvider, PriceResult, PriceTarget, PriceSource, DayStats } from "./types";
@@ -17,8 +18,10 @@ function merge(combined: PriceResult, part: PriceResult) {
  * getPrices(targets[]) — the one function the rest of the app depends on
  * (§5). Routes each target by assetType: CRYPTO tries CoinGecko first, then
  * falls back to Bybit for anything it couldn't price; STOCK goes to
- * Finnhub; BULLION goes to goldapi.io. Swapping providers, or changing the
- * fallback order, only touches this file.
+ * Finnhub; BULLION tries goldapi.io first, then falls back to
+ * metalpriceapi.com for anything still missing (e.g. goldapi's quota maxed
+ * out). Swapping providers, or changing the fallback order, only touches
+ * this file.
  */
 export async function getPrices(targets: PriceTarget[]): Promise<PriceResult> {
   const combined: PriceResult = { prices: {}, source: {}, dayStats: {}, errors: [] };
@@ -43,6 +46,11 @@ export async function getPrices(targets: PriceTarget[]): Promise<PriceResult> {
 
   if (bullionTargets.length > 0) {
     merge(combined, await goldapiProvider.getPrices(bullionTargets));
+
+    const missing = bullionTargets.filter((t) => combined.prices[t.key] === undefined);
+    if (missing.length > 0) {
+      merge(combined, await metalPriceApiProvider.getPrices(missing));
+    }
   }
 
   return combined;

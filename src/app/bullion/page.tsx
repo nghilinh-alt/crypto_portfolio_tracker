@@ -40,7 +40,7 @@ export default async function BullionPage() {
             iconUrl: token.iconUrl,
             currentPrice: token.currentPrice,
             recentHigh: token.recentHigh,
-            meta: "goldapi.io · USD/oz",
+            meta: "Spot price · USD/oz",
             holdingsValueUsd: token.ladder.holdingsValueUsd,
             status: token.ladder.status,
           }))}
