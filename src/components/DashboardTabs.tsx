@@ -451,7 +451,15 @@ export default function DashboardTabs({
                   <div key={token.id} className="rounded-2xl border border-border bg-card p-5 relative overflow-hidden flex flex-col">
                     <div className="flex justify-between items-start mb-4">
                       <StatusBadge status={token.status} />
-                      <span className="text-xs text-muted-foreground font-mono">{token.symbol}</span>
+                      <div className="flex items-center gap-2">
+                        <TokenAvatar
+                          symbol={token.symbol}
+                          iconUrl={token.iconUrl}
+                          gradient={getTokenColor(token.symbol)}
+                          className="h-6 w-6 text-[10px]"
+                        />
+                        <span className="text-xs text-muted-foreground font-mono">{token.symbol}</span>
+                      </div>
                     </div>
                     <div className="font-display font-medium text-xl mb-1 text-foreground">Action needed</div>
                     <div className="text-sm text-muted-foreground mb-6">Rungs eligible for execution</div>
