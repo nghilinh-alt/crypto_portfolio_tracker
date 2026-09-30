@@ -42,6 +42,7 @@ export async function GET(request: Request) {
     source: string;
     newHigh: boolean;
     recentHigh: number;
+    rearmedRebuyRungs: number;
   }> = [];
 
   for (const token of tokens) {
@@ -67,12 +68,27 @@ export async function GET(request: Request) {
       },
     });
 
+    // A new all-time high re-arms the rebuy ladder — trigger prices are
+    // already recalculated live off recentHigh, so a previously-triggered
+    // rung just needs its status cleared to become eligible for the next
+    // dip off the new high. Sell rungs are anchored to the fixed basePrice
+    // instead, so they stay one-shot and are never re-armed this way.
+    let rearmedRebuyRungs = 0;
+    if (newHigh) {
+      const result = await prisma.rebuyRung.updateMany({
+        where: { tokenId: token.id, status: "TRIGGERED" },
+        data: { status: "PENDING", triggeredAt: null },
+      });
+      rearmedRebuyRungs = result.count;
+    }
+
     updated.push({
       symbol: token.symbol,
       price,
       source: source[token.id],
       newHigh,
       recentHigh,
+      rearmedRebuyRungs,
     });
   }
 
