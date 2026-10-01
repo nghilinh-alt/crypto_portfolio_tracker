@@ -79,3 +79,12 @@ export async function getPortfolioHistory() {
     },
   });
 }
+
+/** Timestamp of the most recent price refresh (manual or automatic), or null if none has happened yet. */
+export async function getLastPriceRefreshAt(): Promise<Date | null> {
+  const latest = await prisma.portfolioSnapshot.findFirst({
+    orderBy: { capturedAt: "desc" },
+    select: { capturedAt: true },
+  });
+  return latest?.capturedAt ?? null;
+}

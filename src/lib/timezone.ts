@@ -25,3 +25,10 @@ export function startOfBrisbaneMonth(date: Date): Date {
   const startWall = new Date(Date.UTC(wall.getUTCFullYear(), wall.getUTCMonth(), 1));
   return fromBrisbaneWallClock(startWall);
 }
+
+/** The instant that is 00:00 Brisbane time, for the day containing `date`. */
+export function startOfBrisbaneDay(date: Date): Date {
+  const wall = toBrisbaneWallClock(date);
+  const startWall = new Date(Date.UTC(wall.getUTCFullYear(), wall.getUTCMonth(), wall.getUTCDate()));
+  return fromBrisbaneWallClock(startWall);
+}
