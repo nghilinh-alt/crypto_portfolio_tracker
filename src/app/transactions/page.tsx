@@ -97,6 +97,7 @@ export default async function TransactionsPage({
                   <th className="px-6 py-3 text-right">Qty</th>
                   <th className="px-6 py-3 text-right">Price/Unit</th>
                   <th className="px-6 py-3 text-right">USD</th>
+                  <th className="px-6 py-3">Note</th>
                   <th className="px-6 py-3" />
                 </tr>
               </thead>
@@ -126,6 +127,7 @@ export default async function TransactionsPage({
                     <td className="px-6 py-4 text-right font-mono text-foreground">
                       {formatUsd(tx.usdAmount)}
                     </td>
+                    <td className="max-w-[200px] truncate px-6 py-4 text-muted-foreground">{tx.note ?? "—"}</td>
                     <td className="px-6 py-4 text-right">
                       <DeleteButton
                         url={`/api/transactions/${tx.id}`}
