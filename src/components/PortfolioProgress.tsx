@@ -53,7 +53,7 @@ export default function PortfolioProgress({
    */
   mode?: "total" | "sum-tokens";
 }) {
-  const [timeframe, setTimeframe] = useState<Timeframe>("all");
+  const [timeframe, setTimeframe] = useState<Timeframe>("week");
   const [selectedTokenId, setSelectedTokenId] = useState<string>("all");
 
   const selectedToken = tokens.find((t) => t.id === selectedTokenId);
