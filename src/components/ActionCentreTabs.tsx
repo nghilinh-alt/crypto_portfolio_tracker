@@ -127,7 +127,11 @@ export default function ActionCentreTabs({
           </div>
         ) : (
           <div className="space-y-4">
-            {actionable.map((token) => (
+            {actionable.map((token) => {
+              const sellTotalQty = token.eligibleSellRungs.reduce((sum, r) => sum + r.suggestedSellQty, 0);
+              const sellTotalUsd = sellTotalQty * token.currentPrice;
+              const buyQty = token.currentPrice > 0 ? token.suggestedRebuyDeployUsd / token.currentPrice : 0;
+              return (
               <div key={token.id} className="overflow-hidden rounded-2xl border border-border bg-card transition-colors">
                 <div className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center">
                   <div className="flex min-w-0 flex-1 items-center gap-4">
@@ -160,10 +164,24 @@ export default function ActionCentreTabs({
                             <span className="text-muted-foreground">
                               <strong className="text-foreground">+{r.pct}%</strong> ({formatPrice(r.triggerPrice)}) — sell {r.sellPortionPct}% of base
                             </span>
-                            <span className="font-mono text-foreground font-medium">≈ {formatQty(r.suggestedSellQty)} {token.symbol}</span>
+                            <span className="text-right font-mono text-foreground font-medium">
+                              ≈ {formatQty(r.suggestedSellQty)} {token.symbol}
+                              <span className="block text-xs font-normal text-muted-foreground">
+                                ≈ {formatUsd(r.suggestedSellQty * token.currentPrice)}
+                              </span>
+                            </span>
                           </li>
                         ))}
                       </ul>
+                      {token.eligibleSellRungs.length > 1 && (
+                        <div className="mt-3 flex items-center justify-between border-t border-destructive/20 pt-3 text-sm font-medium text-foreground">
+                          <span className="text-muted-foreground text-xs uppercase tracking-wider font-mono">Suggested sell (all eligible rungs)</span>
+                          <span className="text-right font-mono text-lg text-destructive">
+                            ≈ {formatQty(sellTotalQty)} {token.symbol}
+                            <span className="block text-xs font-normal text-muted-foreground">≈ {formatUsd(sellTotalUsd)}</span>
+                          </span>
+                        </div>
+                      )}
                       <div className="mt-4 flex justify-end">
                         <Link
                           href={`/transactions?tokenId=${token.id}&type=SELL`}
@@ -186,13 +204,27 @@ export default function ActionCentreTabs({
                             <span className="text-muted-foreground">
                               <strong className="text-foreground">-{r.pct}%</strong> ({formatPrice(r.triggerPrice)}) — deploy {r.deployPct}% of contribs
                             </span>
-                            <span className="font-mono text-foreground font-medium">{formatUsd(r.rawDeployUsd)}</span>
+                            <span className="text-right font-mono text-foreground font-medium">
+                              {formatUsd(r.rawDeployUsd)}
+                              {token.currentPrice > 0 && r.rawDeployUsd > 0 && (
+                                <span className="block text-xs font-normal text-muted-foreground">
+                                  ≈ {formatQty(r.rawDeployUsd / token.currentPrice)} {token.symbol}
+                                </span>
+                              )}
+                            </span>
                           </li>
                         ))}
                       </ul>
                       <div className="mt-3 flex items-center justify-between border-t border-emerald-500/20 pt-3 text-sm font-medium text-foreground">
-                        <span className="text-muted-foreground text-xs uppercase tracking-wider font-mono">Suggested deploy (capped at Cash Bucket)</span>
-                        <span className="text-emerald-400 text-lg font-mono">{formatUsd(token.suggestedRebuyDeployUsd)}</span>
+                        <span className="text-muted-foreground text-xs uppercase tracking-wider font-mono">Suggested buy (capped at Cash Bucket)</span>
+                        <span className="text-right font-mono text-lg text-emerald-400">
+                          {buyQty > 0 ? `≈ ${formatQty(buyQty)} ${token.symbol}` : formatUsd(token.suggestedRebuyDeployUsd)}
+                          {buyQty > 0 && (
+                            <span className="block text-xs font-normal text-muted-foreground">
+                              {formatUsd(token.suggestedRebuyDeployUsd)} at {formatPrice(token.currentPrice)}
+                            </span>
+                          )}
+                        </span>
                       </div>
                       <div className="mt-4 flex justify-end">
                         <Link
@@ -206,7 +238,8 @@ export default function ActionCentreTabs({
                   )}
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </section>

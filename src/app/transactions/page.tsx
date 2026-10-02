@@ -23,6 +23,7 @@ export default async function TransactionsPage({
     holdingsValueUsd: t.ladder.holdingsValueUsd,
     cashBucket: t.ladder.cashBucket,
     taxReserved: t.ladder.taxReserved,
+    suggestedRebuyDeployUsd: t.ladder.suggestedRebuyDeployUsd,
     pendingSellRungs: t.ladder.sellRungs
       .filter((r) => r.status === "PENDING")
       .map((r) => ({

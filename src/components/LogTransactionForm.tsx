@@ -22,6 +22,8 @@ export type TokenOption = {
   holdingsValueUsd: number;
   cashBucket: number;
   taxReserved: number;
+  /** Eligible rebuy rungs' combined deploy amount, already capped at the Cash Bucket. */
+  suggestedRebuyDeployUsd: number;
   pendingSellRungs: RungOption[];
   pendingRebuyRungs: RungOption[];
 };
@@ -213,6 +215,13 @@ function TransactionFields({ token, type }: { token: TokenOption; type: TxType }
   // Pre-fill with the sum of whatever sell rungs are eligible right now (same
   // ones pre-checked below) — still a plain editable field, not locked to it.
   const [quantity, setQuantity] = useState(() => {
+    if (type === "BUY") {
+      // Same figure the Action Centre card shows: the eligible rebuy rungs'
+      // deploy amount (already capped at the Cash Bucket) at today's price.
+      const hasEligibleRung = token.pendingRebuyRungs.some((r) => r.isEligible);
+      if (!hasEligibleRung || token.currentPrice <= 0 || token.suggestedRebuyDeployUsd <= 0) return "";
+      return String(Number((token.suggestedRebuyDeployUsd / token.currentPrice).toPrecision(10)));
+    }
     if (type !== "SELL") return "";
     const eligibleQty = token.pendingSellRungs
       .filter((r) => r.isEligible)
