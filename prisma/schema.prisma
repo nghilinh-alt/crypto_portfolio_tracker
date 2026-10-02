@@ -117,6 +117,9 @@ model Token {
   // basePrice/recentHigh it never drives ladder triggers, just "how far away
   // is the price I actually want to buy at."
   targetBuyPrice  Float?
+  // User-flagged favourite (starred on the Watchlist) — only affects display
+  // and sorting, never ladder logic.
+  isFavorite      Boolean   @default(false)
   lastPriceUpdate DateTime?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt

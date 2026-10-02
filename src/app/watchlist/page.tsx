@@ -52,6 +52,7 @@ export default async function WatchlistPage() {
             dayHigh: t.dayHigh,
             dayLow: t.dayLow,
             targetBuyPrice: t.targetBuyPrice,
+            isFavorite: t.isFavorite,
           }))}
         />
       )}

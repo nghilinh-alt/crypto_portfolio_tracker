@@ -52,6 +52,7 @@ export const updateTokenSchema = z.object({
   basePrice: z.number().nonnegative().optional(),
   baseHoldings: z.number().nonnegative().optional(),
   targetBuyPrice: z.number().positive().optional().nullable(),
+  isFavorite: z.boolean().optional(),
 });
 
 export const createSellRungSchema = z.object({

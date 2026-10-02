@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import TokenAvatar from "./TokenAvatar";
 import DeleteButton from "./DeleteButton";
 import SortableHeader from "./SortableHeader";
@@ -19,10 +20,11 @@ export type WatchlistItem = {
   dayHigh: number | null;
   dayLow: number | null;
   targetBuyPrice: number | null;
+  isFavorite: boolean;
 };
 
 type Tab = "ALL" | "CRYPTO" | "STOCK" | "BULLION";
-type SortKey = "symbol" | "price" | "change" | "targetBuy" | "toTarget";
+type SortKey = "symbol" | "favorite" | "price" | "change" | "targetBuy" | "toTarget";
 
 /** How close (in %) the price needs to be to the target before it's flagged as a near-term buy opportunity. */
 const NEAR_TARGET_THRESHOLD_PCT = 10;
@@ -51,6 +53,11 @@ function sortItems(items: WatchlistItem[], sortKey: SortKey, sortDir: "asc" | "d
   switch (sortKey) {
     case "symbol":
       return copy.sort((a, b) => dir * a.symbol.localeCompare(b.symbol));
+    case "favorite":
+      // Favourites on top for "desc"; ties fall back to A–Z so the order is stable.
+      return copy.sort(
+        (a, b) => dir * (Number(a.isFavorite) - Number(b.isFavorite)) || a.symbol.localeCompare(b.symbol)
+      );
     case "price":
       return copy.sort((a, b) => dir * (a.currentPrice - b.currentPrice));
     case "targetBuy":
@@ -62,10 +69,33 @@ function sortItems(items: WatchlistItem[], sortKey: SortKey, sortDir: "asc" | "d
   }
 }
 
+function StarIcon({ filled }: { filled: boolean }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill={filled ? "currentColor" : "none"}
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+    </svg>
+  );
+}
+
 export default function WatchlistTable({ items }: { items: WatchlistItem[] }) {
+  const router = useRouter();
   const [tab, setTab] = useState<Tab>("ALL");
   const [sortKey, setSortKey] = useState<SortKey>("change");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  // Optimistic star state so the toggle (and a favourite-sorted order) updates
+  // instantly instead of waiting on the PATCH + server refresh round trip.
+  const [favoriteOverrides, setFavoriteOverrides] = useState<Record<string, boolean>>({});
 
   function toggleSort(key: SortKey) {
     if (key === sortKey) {
@@ -76,10 +106,28 @@ export default function WatchlistTable({ items }: { items: WatchlistItem[] }) {
     }
   }
 
-  const filtered = useMemo(
-    () => (tab === "ALL" ? items : items.filter((i) => i.assetType === tab)),
-    [items, tab]
-  );
+  async function toggleFavorite(item: WatchlistItem) {
+    const next = !item.isFavorite;
+    setFavoriteOverrides((o) => ({ ...o, [item.id]: next }));
+    try {
+      const res = await fetch(`/api/tokens/${item.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isFavorite: next }),
+      });
+      if (!res.ok) throw new Error("Failed to update favourite");
+      router.refresh();
+    } catch {
+      setFavoriteOverrides((o) => ({ ...o, [item.id]: !next }));
+    }
+  }
+
+  const filtered = useMemo(() => {
+    const withFavorites = items.map((i) =>
+      i.id in favoriteOverrides ? { ...i, isFavorite: favoriteOverrides[i.id] } : i
+    );
+    return tab === "ALL" ? withFavorites : withFavorites.filter((i) => i.assetType === tab);
+  }, [items, tab, favoriteOverrides]);
   const sorted = useMemo(() => sortItems(filtered, sortKey, sortDir), [filtered, sortKey, sortDir]);
 
   return (
@@ -108,7 +156,10 @@ export default function WatchlistTable({ items }: { items: WatchlistItem[] }) {
       ) : (
         <div className="overflow-hidden rounded-2xl border border-border bg-card">
           <div className="hidden md:grid grid-cols-[minmax(200px,1.8fr)_.6fr_.8fr_.8fr_1fr_.8fr_1fr_auto] gap-4 border-b border-border/60 bg-muted/30 px-6 py-3 text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
-            <SortableHeader label="Asset" sortKey="symbol" activeKey={sortKey} dir={sortDir} onClick={toggleSort} />
+            <div className="flex items-center gap-4">
+              <SortableHeader label="Asset" sortKey="symbol" activeKey={sortKey} dir={sortDir} onClick={toggleSort} fullWidth={false} />
+              <SortableHeader label="★ Favourites" sortKey="favorite" activeKey={sortKey} dir={sortDir} onClick={toggleSort} fullWidth={false} />
+            </div>
             <span>Type</span>
             <SortableHeader label="Price" sortKey="price" activeKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
             <SortableHeader label="Day Change" sortKey="change" activeKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
@@ -130,13 +181,27 @@ export default function WatchlistTable({ items }: { items: WatchlistItem[] }) {
                   key={item.id}
                   className="grid grid-cols-2 items-center gap-4 px-6 py-4 transition-colors hover:bg-muted/40 md:grid-cols-[minmax(200px,1.8fr)_.6fr_.8fr_.8fr_1fr_.8fr_1fr_auto]"
                 >
-                  <Link href={assetDetailHref(item.assetType, item.id)} className="flex items-center gap-3">
-                    <TokenAvatar symbol={item.symbol} iconUrl={item.iconUrl} className="h-9 w-9 text-xs" />
-                    <div>
-                      <div className="font-medium text-foreground">{item.symbol}</div>
-                      <div className="text-xs text-muted-foreground">{item.name}</div>
-                    </div>
-                  </Link>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => toggleFavorite(item)}
+                      aria-pressed={item.isFavorite}
+                      aria-label={item.isFavorite ? `Remove ${item.symbol} from favourites` : `Add ${item.symbol} to favourites`}
+                      title={item.isFavorite ? "Remove from favourites" : "Add to favourites"}
+                      className={`shrink-0 rounded-md p-1 transition-colors ${
+                        item.isFavorite ? "text-amber-400" : "text-muted-foreground/40 hover:text-amber-400"
+                      }`}
+                    >
+                      <StarIcon filled={item.isFavorite} />
+                    </button>
+                    <Link href={assetDetailHref(item.assetType, item.id)} className="flex items-center gap-3">
+                      <TokenAvatar symbol={item.symbol} iconUrl={item.iconUrl} className="h-9 w-9 text-xs" />
+                      <div>
+                        <div className="font-medium text-foreground">{item.symbol}</div>
+                        <div className="text-xs text-muted-foreground">{item.name}</div>
+                      </div>
+                    </Link>
+                  </div>
                   <div>
                     <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
                       {item.assetType === "STOCK" ? "Stock" : item.assetType === "BULLION" ? "Bullion" : "Crypto"}
