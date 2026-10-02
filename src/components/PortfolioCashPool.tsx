@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatUsd } from "@/lib/format";
 
@@ -16,7 +16,11 @@ export default function PortfolioCashPool({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<Mode>("assign");
-  const [tokenId, setTokenId] = useState(tokens[0]?.id ?? "");
+  const sortedTokens = useMemo(
+    () => tokens.slice().sort((a, b) => a.symbol.localeCompare(b.symbol)),
+    [tokens]
+  );
+  const [tokenId, setTokenId] = useState(sortedTokens[0]?.id ?? "");
   const [amount, setAmount] = useState(balance > 0 ? String(balance) : "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -96,7 +100,7 @@ export default function PortfolioCashPool({
                   onChange={(e) => setTokenId(e.target.value)}
                   className="block w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
                 >
-                  {tokens.map((t) => (
+                  {sortedTokens.map((t) => (
                     <option key={t.id} value={t.id}>
                       {t.symbol}
                     </option>
