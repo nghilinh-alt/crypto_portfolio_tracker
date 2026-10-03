@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import TokenAvatar from "./TokenAvatar";
@@ -28,6 +28,9 @@ type SortKey = "symbol" | "favorite" | "price" | "change" | "targetBuy" | "toTar
 
 /** How close (in %) the price needs to be to the target before it's flagged as a near-term buy opportunity. */
 const NEAR_TARGET_THRESHOLD_PCT = 10;
+
+/** localStorage key for the "Favourites only" checkbox — a per-browser display preference, not portfolio data. */
+const FAVORITES_ONLY_KEY = "watchlist-favorites-only";
 
 const TABS: Array<{ key: Tab; label: string }> = [
   { key: "ALL", label: "All" },
@@ -96,6 +99,19 @@ export default function WatchlistTable({ items }: { items: WatchlistItem[] }) {
   // Optimistic star state so the toggle (and a favourite-sorted order) updates
   // instantly instead of waiting on the PATCH + server refresh round trip.
   const [favoriteOverrides, setFavoriteOverrides] = useState<Record<string, boolean>>({});
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
+
+  // Read the saved preference after mount (not in the initializer) so the
+  // first client render still matches the server-rendered HTML.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time sync from browser storage, which SSR can't see
+    if (localStorage.getItem(FAVORITES_ONLY_KEY) === "true") setFavoritesOnly(true);
+  }, []);
+
+  function toggleFavoritesOnly(checked: boolean) {
+    setFavoritesOnly(checked);
+    localStorage.setItem(FAVORITES_ONLY_KEY, String(checked));
+  }
 
   function toggleSort(key: SortKey) {
     if (key === sortKey) {
@@ -126,32 +142,46 @@ export default function WatchlistTable({ items }: { items: WatchlistItem[] }) {
     const withFavorites = items.map((i) =>
       i.id in favoriteOverrides ? { ...i, isFavorite: favoriteOverrides[i.id] } : i
     );
-    return tab === "ALL" ? withFavorites : withFavorites.filter((i) => i.assetType === tab);
-  }, [items, tab, favoriteOverrides]);
+    const inTab = tab === "ALL" ? withFavorites : withFavorites.filter((i) => i.assetType === tab);
+    return favoritesOnly ? inTab.filter((i) => i.isFavorite) : inTab;
+  }, [items, tab, favoriteOverrides, favoritesOnly]);
   const sorted = useMemo(() => sortItems(filtered, sortKey, sortDir), [filtered, sortKey, sortDir]);
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-1 rounded-xl bg-muted p-1 sm:flex sm:w-fit">
-        {TABS.map((option) => (
-          <button
-            key={option.key}
-            type="button"
-            onClick={() => setTab(option.key)}
-            className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-              tab === option.key
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {option.label}
-          </button>
-        ))}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="grid grid-cols-2 gap-1 rounded-xl bg-muted p-1 sm:flex sm:w-fit">
+          {TABS.map((option) => (
+            <button
+              key={option.key}
+              type="button"
+              onClick={() => setTab(option.key)}
+              className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+                tab === option.key
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+        <label className="flex cursor-pointer select-none items-center gap-2 text-sm text-muted-foreground">
+          <input
+            type="checkbox"
+            checked={favoritesOnly}
+            onChange={(e) => toggleFavoritesOnly(e.target.checked)}
+            className="h-4 w-4 rounded border-input text-primary focus:ring-1 focus:ring-primary"
+          />
+          Favourites only
+        </label>
       </div>
 
       {sorted.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-border bg-card/50 p-8 text-center text-sm text-muted-foreground">
-          Nothing in this filter.
+          {favoritesOnly
+            ? "No favourites in this view. Star an asset to see it here, or untick Favourites only."
+            : "Nothing in this filter."}
         </p>
       ) : (
         <div className="overflow-hidden rounded-2xl border border-border bg-card">
