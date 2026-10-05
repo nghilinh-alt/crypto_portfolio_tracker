@@ -13,8 +13,8 @@ export default async function WatchlistPage() {
 
   return (
     <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <header className="flex flex-col gap-5 border-b border-border pb-6 thin-rule md:flex-row md:items-end md:justify-between">
-        <div>
+      <header className="flex flex-col gap-5 border-b border-border pb-6 thin-rule md:flex-row md:flex-wrap md:items-end md:justify-between">
+        <div className="md:min-w-[18rem] md:flex-1">
           <h1 className="text-4xl font-display font-semibold tracking-tight md:text-5xl text-foreground">
             Watchlist
           </h1>
@@ -23,7 +23,7 @@ export default async function WatchlistPage() {
             at 0 holdings shows up here automatically.
           </p>
         </div>
-        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:max-w-full sm:flex-row sm:flex-wrap sm:justify-end">
           <AddTokenForm categories={categoryOptions} mode="watchlist" />
           <AddStockForm categories={categoryOptions} mode="watchlist" />
           <AddBullionForm categories={categoryOptions} mode="watchlist" />
