@@ -152,7 +152,7 @@ function RungRowEditor({
             step="any"
             value={pct}
             onChange={(e) => setPct(e.target.value)}
-            className="w-14 rounded-md border border-input bg-background/50 px-1.5 py-1 text-sm text-foreground focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-colors"
+            className="w-24 rounded-md border border-input bg-background/50 px-1.5 py-1 text-sm text-foreground focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-colors"
           />
           <span className="text-muted-foreground">%</span>
         </div>
@@ -167,7 +167,7 @@ function RungRowEditor({
             step="any"
             value={portion}
             onChange={(e) => setPortion(e.target.value)}
-            className="w-14 rounded-md border border-input bg-background/50 px-1.5 py-1 text-sm text-foreground focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-colors"
+            className="w-20 rounded-md border border-input bg-background/50 px-1.5 py-1 text-sm text-foreground focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-colors"
           />
           <span className="text-muted-foreground">%</span>
         </div>

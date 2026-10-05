@@ -267,7 +267,7 @@ function RungTable({
           value={pct}
           onChange={(e) => setPct(e.target.value)}
           placeholder={pctPlaceholder}
-          className="w-20 rounded border border-input bg-background px-2 py-1 text-sm"
+          className="w-24 rounded border border-input bg-background px-2 py-1 text-sm"
         />
         <input
           type="number"
@@ -341,7 +341,7 @@ function RungRow({
             step="any"
             value={pct}
             onChange={(e) => setPct(e.target.value)}
-            className="w-16 rounded border border-input bg-background px-1.5 py-1 text-sm"
+            className="w-24 rounded border border-input bg-background px-1.5 py-1 text-sm"
           />
         </div>
       </td>
@@ -351,7 +351,7 @@ function RungRow({
           step="any"
           value={portionPct}
           onChange={(e) => setPortionPct(e.target.value)}
-          className="w-16 rounded border border-input bg-background px-1.5 py-1 text-sm"
+          className="w-20 rounded border border-input bg-background px-1.5 py-1 text-sm"
         />
       </td>
       <td className="py-1 text-right">
