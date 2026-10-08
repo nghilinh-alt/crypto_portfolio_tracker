@@ -1,5 +1,6 @@
-import { getAllTokensWithLadder, getPortfolioHistory } from "@/lib/data";
-import { getPortfolioCashPoolBalance } from "@/lib/cashPool";
+import { getPortfolioOverview, getPortfolioHistory } from "@/lib/data";
+import { getTotalTaxPaid } from "@/lib/tax";
+import { toCashOverview } from "@/lib/portfolioCash";
 import { getPortfolioSettings } from "@/lib/settings";
 import DashboardTabs from "@/components/DashboardTabs";
 
@@ -7,12 +8,13 @@ import DashboardTabs from "@/components/DashboardTabs";
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const [tokens, history, poolBalance, settings] = await Promise.all([
-    getAllTokensWithLadder(),
+  const [{ tokens, cash }, history, taxPaid, settings] = await Promise.all([
+    getPortfolioOverview(),
     getPortfolioHistory(),
-    getPortfolioCashPoolBalance(),
+    getTotalTaxPaid(),
     getPortfolioSettings(),
   ]);
+  const cashOverview = toCashOverview(cash, taxPaid);
 
   const snapshots = history.map((s) => ({
     capturedAt: s.capturedAt.toISOString(),
@@ -36,9 +38,9 @@ export default async function DashboardPage() {
     dayChangePct: t.dayChangePct,
     holdings: t.ladder.holdings,
     holdingsValueUsd: t.ladder.holdingsValueUsd,
-    cashBucket: t.ladder.cashBucket,
-    cashBucketContributions: t.ladder.cashBucketContributions,
+    tokenCashFlow: t.ladder.tokenCashFlow,
     taxReserved: t.ladder.taxReserved,
+    realizedProfit: t.ladder.realizedProfit,
     gainFromBasePct: t.ladder.gainFromBasePct,
     drawdownPct: t.ladder.drawdownPct,
   }));
@@ -47,7 +49,8 @@ export default async function DashboardPage() {
     <DashboardTabs
       tokens={dashboardTokens}
       snapshots={snapshots}
-      poolBalance={poolBalance}
+      portfolioCash={cashOverview.cash}
+      estAccountCash={cashOverview.estAccountCash}
       targetValueUsd={settings?.targetValueUsd ?? null}
     />
   );

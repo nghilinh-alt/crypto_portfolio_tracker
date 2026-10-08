@@ -45,7 +45,7 @@ export default function PortfolioProgress({
   tokens: TokenOption[];
   /**
    * "total" (default): the "All portfolio" line uses the snapshot's stored
-   * totalValueUsd (full net worth — holdings + Cash Bucket + pool). "sum-
+   * totalValueUsd (full net worth — holdings + portfolio cash). "sum-
    * tokens": the "All portfolio" line instead sums each of `tokens`' own
    * perToken value — used for the per-asset-type (Crypto/Stock) dashboard
    * views, since there's no historical per-asset-type net-worth figure to

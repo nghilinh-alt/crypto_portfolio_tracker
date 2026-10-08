@@ -1,5 +1,7 @@
 import { prisma } from "./prisma";
 import { computeTokenLadderView, type TokenLadderView } from "./ladder";
+import { computePositionFigures } from "./position";
+import { getPortfolioCash, summarizePortfolioCash } from "./portfolioCash";
 
 const STATUS_PRIORITY: Record<TokenLadderView["status"], number> = {
   SELL: 0,
@@ -11,46 +13,73 @@ const STATUS_PRIORITY: Record<TokenLadderView["status"], number> = {
 export type TokenWithLadder = Awaited<ReturnType<typeof getTokenWithLadder>>;
 
 export async function getTokenWithLadder(id: string) {
-  const token = await prisma.token.findUnique({
-    where: { id },
-    include: {
-      category: true,
-      sellRungs: { orderBy: { order: "asc" } },
-      rebuyRungs: { orderBy: { order: "asc" } },
-      transactions: { orderBy: { occurredAt: "desc" } },
-    },
-  });
+  const [token, portfolioCash] = await Promise.all([
+    prisma.token.findUnique({
+      where: { id },
+      include: {
+        category: true,
+        sellRungs: { orderBy: { order: "asc" } },
+        rebuyRungs: { orderBy: { order: "asc" } },
+        transactions: { orderBy: { occurredAt: "desc" } },
+      },
+    }),
+    getPortfolioCash(),
+  ]);
   if (!token) return null;
 
   const ladder = computeTokenLadderView(
     token,
     token.sellRungs,
     token.rebuyRungs,
-    token.transactions
+    token.transactions,
+    portfolioCash
   );
 
   return { ...token, ladder };
 }
 
-export async function getAllTokensWithLadder() {
-  const tokens = await prisma.token.findMany({
-    include: {
-      category: true,
-      sellRungs: { orderBy: { order: "asc" } },
-      rebuyRungs: { orderBy: { order: "asc" } },
-      transactions: true,
-    },
-    orderBy: { symbol: "asc" },
-  });
+/**
+ * Every token with its ladder view, plus the single portfolio cash summary,
+ * from one load. Portfolio cash is computed first because it caps every
+ * token's suggested rebuy.
+ */
+export async function getPortfolioOverview() {
+  const [tokens, ledgerRows] = await Promise.all([
+    prisma.token.findMany({
+      include: {
+        category: true,
+        sellRungs: { orderBy: { order: "asc" } },
+        rebuyRungs: { orderBy: { order: "asc" } },
+        transactions: true,
+      },
+      orderBy: { symbol: "asc" },
+    }),
+    prisma.portfolioCashTransaction.findMany({ select: { direction: true, amount: true } }),
+  ]);
 
-  const withLadder = tokens.map((token) => ({
-    ...token,
-    ladder: computeTokenLadderView(token, token.sellRungs, token.rebuyRungs, token.transactions),
-  }));
-
-  return withLadder.sort(
-    (a, b) => STATUS_PRIORITY[a.ladder.status] - STATUS_PRIORITY[b.ladder.status]
+  const cash = summarizePortfolioCash(
+    tokens.map((t) => computePositionFigures(t.transactions)),
+    ledgerRows
   );
+
+  const withLadder = tokens
+    .map((token) => ({
+      ...token,
+      ladder: computeTokenLadderView(
+        token,
+        token.sellRungs,
+        token.rebuyRungs,
+        token.transactions,
+        cash.cash
+      ),
+    }))
+    .sort((a, b) => STATUS_PRIORITY[a.ladder.status] - STATUS_PRIORITY[b.ladder.status]);
+
+  return { tokens: withLadder, cash };
+}
+
+export async function getAllTokensWithLadder() {
+  return (await getPortfolioOverview()).tokens;
 }
 
 export async function getCategories() {

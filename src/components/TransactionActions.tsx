@@ -29,9 +29,11 @@ const inputClass =
 const labelClass = "text-[10px] font-mono uppercase tracking-wider text-muted-foreground";
 
 export default function TransactionActions({ tx }: { tx: EditableTransaction }) {
+  // Only trades are editable here; cash movements are edited from the cash ledger.
+  const isTrade = tx.type === "BUY" || tx.type === "SELL";
   return (
     <div className="flex items-center justify-end gap-3">
-      <EditTransactionDialog tx={tx} />
+      {isTrade && <EditTransactionDialog tx={tx} />}
       <DeleteButton
         url={`/api/transactions/${tx.id}`}
         confirmText={`Delete this ${tx.type} for ${tx.symbol}? Any rung it triggered will stay triggered.`}
@@ -43,12 +45,9 @@ export default function TransactionActions({ tx }: { tx: EditableTransaction }) 
 function EditTransactionDialog({ tx }: { tx: EditableTransaction }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const isTrade = tx.type === "BUY" || tx.type === "SELL";
-
   const [fundedBy, setFundedBy] = useState<"CASH_BUCKET" | "EXTERNAL">(tx.fundedBy ?? "EXTERNAL");
   const [quantity, setQuantity] = useState(tx.quantity !== null ? String(tx.quantity) : "");
   const [pricePerUnit, setPricePerUnit] = useState(tx.pricePerUnit !== null ? String(tx.pricePerUnit) : "");
-  const [usdAmount, setUsdAmount] = useState(String(tx.usdAmount));
   const [note, setNote] = useState(tx.note ?? "");
   const [occurredAt, setOccurredAt] = useState(() => toDatetimeLocal(new Date(tx.occurredAt)));
   const [busy, setBusy] = useState(false);
@@ -68,14 +67,13 @@ function EditTransactionDialog({ tx }: { tx: EditableTransaction }) {
     setFundedBy(tx.fundedBy ?? "EXTERNAL");
     setQuantity(tx.quantity !== null ? String(tx.quantity) : "");
     setPricePerUnit(tx.pricePerUnit !== null ? String(tx.pricePerUnit) : "");
-    setUsdAmount(String(tx.usdAmount));
     setNote(tx.note ?? "");
     setOccurredAt(toDatetimeLocal(new Date(tx.occurredAt)));
     setError(null);
     setOpen(true);
   }
 
-  const total = isTrade ? Number(quantity) * Number(pricePerUnit) : Number(usdAmount);
+  const total = Number(quantity) * Number(pricePerUnit);
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
@@ -84,14 +82,10 @@ function EditTransactionDialog({ tx }: { tx: EditableTransaction }) {
     const payload: Record<string, unknown> = {
       note: note.trim() === "" ? null : note,
       occurredAt: new Date(occurredAt).toISOString(),
+      quantity: Number(quantity),
+      pricePerUnit: Number(pricePerUnit),
     };
-    if (isTrade) {
-      payload.quantity = Number(quantity);
-      payload.pricePerUnit = Number(pricePerUnit);
-      if (tx.type === "BUY") payload.fundedBy = fundedBy;
-    } else {
-      payload.usdAmount = Number(usdAmount);
-    }
+    if (tx.type === "BUY") payload.fundedBy = fundedBy;
     try {
       const res = await fetch(`/api/transactions/${tx.id}`, {
         method: "PATCH",
@@ -158,65 +152,45 @@ function EditTransactionDialog({ tx }: { tx: EditableTransaction }) {
                     onChange={(e) => setFundedBy(e.target.value as "CASH_BUCKET" | "EXTERNAL")}
                     className={inputClass}
                   >
-                    <option value="CASH_BUCKET">Cash Bucket</option>
-                    <option value="EXTERNAL">External</option>
+                    <option value="CASH_BUCKET">Portfolio cash</option>
+                    <option value="EXTERNAL">Outside Rekt</option>
                   </select>
                   <span className="text-[10px] text-muted-foreground/70">
-                    Cash Bucket subtracts the total from this token&apos;s Cash Bucket; External doesn&apos;t touch it.
+                    Portfolio cash takes the total out of your cash balance. Outside Rekt means you paid from somewhere Rekt
+                    doesn&apos;t track, so cash is unchanged.
                   </span>
                 </label>
               )}
 
-              {isTrade ? (
-                <>
-                  <label className="block space-y-1.5">
-                    <span className={labelClass}>Quantity</span>
-                    <input
-                      type="number"
-                      step="any"
-                      required
-                      value={quantity}
-                      onChange={(e) => setQuantity(e.target.value)}
-                      className={inputClass}
-                    />
-                  </label>
-                  <label className="block space-y-1.5">
-                    <span className={labelClass}>Price / Unit (USD)</span>
-                    <input
-                      type="number"
-                      step="any"
-                      required
-                      value={pricePerUnit}
-                      onChange={(e) => setPricePerUnit(e.target.value)}
-                      className={inputClass}
-                    />
-                  </label>
-                </>
-              ) : (
-                <label className="col-span-2 block space-y-1.5">
-                  <span className={labelClass}>Amount (USD)</span>
-                  <input
-                    type="number"
-                    step="any"
-                    required
-                    value={usdAmount}
-                    onChange={(e) => setUsdAmount(e.target.value)}
-                    className={inputClass}
-                  />
-                  <span className="text-[10px] text-muted-foreground/70">
-                    If this is one half of a cash transfer between tokens, the other side won&apos;t change.
-                  </span>
-                </label>
-              )}
+              <label className="block space-y-1.5">
+                <span className={labelClass}>Quantity</span>
+                <input
+                  type="number"
+                  step="any"
+                  required
+                  value={quantity}
+                  onChange={(e) => setQuantity(e.target.value)}
+                  className={inputClass}
+                />
+              </label>
+              <label className="block space-y-1.5">
+                <span className={labelClass}>Price / Unit (USD)</span>
+                <input
+                  type="number"
+                  step="any"
+                  required
+                  value={pricePerUnit}
+                  onChange={(e) => setPricePerUnit(e.target.value)}
+                  className={inputClass}
+                />
+              </label>
 
-              {isTrade && (
-                <div className="col-span-2 flex items-center justify-between rounded-md border border-border/50 bg-muted/20 px-3 py-2 text-sm">
-                  <span className={labelClass}>Total (USD)</span>
-                  <span className="font-mono text-foreground">
-                    {Number.isFinite(total) && total > 0 ? formatUsd(total) : "—"}
-                  </span>
-                </div>
-              )}
+              <div className="col-span-2 flex items-center justify-between rounded-md border border-border/50 bg-muted/20 px-3 py-2 text-sm">
+                <span className={labelClass}>Total (USD)</span>
+                <span className="font-mono text-foreground">
+                  {Number.isFinite(total) && total > 0 ? formatUsd(total) : "—"}
+                </span>
+              </div>
 
               <label className="col-span-2 block space-y-1.5">
                 <span className={labelClass}>When</span>

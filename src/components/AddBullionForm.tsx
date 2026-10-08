@@ -185,7 +185,7 @@ export default function AddBullionForm({
             <>
               <span className="font-semibold text-foreground">Pro tip:</span> Prices are per troy ounce. Picking a
               category applies its sell and rebuy ladder templates automatically. Otherwise the rebuy ladder defaults
-              to -15/-25/-35/-45% off recent high, deploying 10/20/30/40% of Cash Bucket Contributions. If Base
+              to -15/-25/-35/-45% off recent high, deploying 10/20/30/40% of the token&apos;s rebuy budget. If Base
               Holdings and Base Price are both set, an opening BUY is logged automatically so Holdings Value isn&apos;t
               $0 until your next transaction.
             </>

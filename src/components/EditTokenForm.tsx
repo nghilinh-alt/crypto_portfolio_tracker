@@ -17,6 +17,8 @@ export default function EditTokenForm({
   basePrice,
   baseHoldings,
   targetBuyPrice,
+  rebuyTopUpUsd,
+  netSellProceeds,
 }: {
   tokenId: string;
   name: string;
@@ -31,6 +33,9 @@ export default function EditTokenForm({
   basePrice: number;
   baseHoldings: number;
   targetBuyPrice: number | null;
+  rebuyTopUpUsd: number;
+  /** Lifetime sale proceeds after the tax reserve — the sells part of the rebuy budget. */
+  netSellProceeds: number;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -45,6 +50,7 @@ export default function EditTokenForm({
     basePrice: String(basePrice),
     baseHoldings: String(baseHoldings),
     targetBuyPrice: targetBuyPrice === null ? "" : String(targetBuyPrice),
+    rebuyTopUpUsd: String(rebuyTopUpUsd),
   });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -67,6 +73,7 @@ export default function EditTokenForm({
                 basePrice: Number(values.basePrice),
                 baseHoldings: Number(values.baseHoldings),
                 targetBuyPrice: values.targetBuyPrice ? Number(values.targetBuyPrice) : null,
+                rebuyTopUpUsd: Number(values.rebuyTopUpUsd) || 0,
               }
             : assetType === "BULLION"
               ? {
@@ -75,6 +82,7 @@ export default function EditTokenForm({
                   basePrice: Number(values.basePrice),
                   baseHoldings: Number(values.baseHoldings),
                   targetBuyPrice: values.targetBuyPrice ? Number(values.targetBuyPrice) : null,
+                rebuyTopUpUsd: Number(values.rebuyTopUpUsd) || 0,
                 }
               : {
                   name: values.name,
@@ -85,6 +93,7 @@ export default function EditTokenForm({
                   basePrice: Number(values.basePrice),
                   baseHoldings: Number(values.baseHoldings),
                   targetBuyPrice: values.targetBuyPrice ? Number(values.targetBuyPrice) : null,
+                rebuyTopUpUsd: Number(values.rebuyTopUpUsd) || 0,
                 }
         ),
       });
@@ -239,6 +248,23 @@ export default function EditTokenForm({
             className="block w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
           />
           <span className="text-[10px] text-muted-foreground/70">informational only — how far away is your entry</span>
+        </label>
+        <label className="block space-y-1">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
+            Rebuy Budget Top-up (USD)
+          </span>
+          <input
+            type="number"
+            step="any"
+            value={values.rebuyTopUpUsd}
+            onChange={(e) => setValues((v) => ({ ...v, rebuyTopUpUsd: e.target.value }))}
+            className="block w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+          />
+          <span className="text-[10px] text-muted-foreground/70">
+            rebuy budget = $
+            {netSellProceeds.toLocaleString("en-US", { maximumFractionDigits: 2 })} from sells + this top-up. Each
+            rebuy rung deploys its Deploy % of the budget, capped by portfolio cash. Not cash itself.
+          </span>
         </label>
       </div>
 

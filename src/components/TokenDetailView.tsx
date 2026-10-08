@@ -2,16 +2,15 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getTokenWithLadder, getCategories } from "@/lib/data";
-import { prisma } from "@/lib/prisma";
 import StatusBadge from "@/components/StatusBadge";
 import EditTokenForm from "@/components/EditTokenForm";
 import RungEditor from "@/components/RungEditor";
-import DeleteButton from "@/components/DeleteButton";
+import TransactionActions from "@/components/TransactionActions";
 import TokenAvatar from "@/components/TokenAvatar";
 import ApplyCategoryTemplate from "@/components/ApplyCategoryTemplate";
-import CashBucketActions from "@/components/CashBucketActions";
 import { formatUsd, formatPrice, formatPct, formatQty, formatDate } from "@/lib/format";
 import { isUsMarketOpen } from "@/lib/marketHours";
+import { fundedByLabel } from "@/lib/labels";
 
 /**
  * Shared by the /tokens/[id], /stocks/[id], and /bullion/[id] routes — one
@@ -19,15 +18,7 @@ import { isUsMarketOpen } from "@/lib/marketHours";
  * tab instead of always lighting up "Tokens" (see src/lib/assetRoute.ts).
  */
 export default async function TokenDetailView({ id }: { id: string }) {
-  const [token, categories, otherTokens] = await Promise.all([
-    getTokenWithLadder(id),
-    getCategories(),
-    prisma.token.findMany({
-      where: { NOT: { id } },
-      select: { id: true, symbol: true },
-      orderBy: { symbol: "asc" },
-    }),
-  ]);
+  const [token, categories] = await Promise.all([getTokenWithLadder(id), getCategories()]);
   if (!token) notFound();
 
   const { ladder } = token;
@@ -83,19 +74,14 @@ export default async function TokenDetailView({ id }: { id: string }) {
           subTone={ladder.drawdownPct > 0 ? "negative" : "neutral"}
         />
         <StatCard
-          label="Cash Bucket"
-          value={formatUsd(ladder.cashBucket)}
-          sub={`From ${formatUsd(ladder.cashBucketContributions)}`}
-        >
-          <div className="mt-2">
-            <CashBucketActions
-              key={token.id}
-              tokenId={token.id}
-              cashBucket={ladder.cashBucket}
-              otherTokens={otherTokens}
-            />
-          </div>
-        </StatCard>
+          label="Rebuy Budget"
+          value={formatUsd(ladder.rebuyBudget)}
+          sub={`${formatUsd(ladder.netSellProceeds)} from sells${
+            ladder.rebuyTopUpUsd !== 0
+              ? ` ${ladder.rebuyTopUpUsd > 0 ? "+" : "−"} ${formatUsd(Math.abs(ladder.rebuyTopUpUsd))} top-up`
+              : ""
+          }`}
+        />
         <StatCard
           label="Base Holdings"
           value={formatQty(ladder.baseHoldings)}
@@ -109,7 +95,7 @@ export default async function TokenDetailView({ id }: { id: string }) {
         <StatCard
           label="Suggested Rebuy"
           value={formatUsd(ladder.suggestedRebuyDeployUsd)}
-          sub="capped at Cash Bucket"
+          sub="capped at portfolio cash"
         />
       </div>
 
@@ -132,6 +118,8 @@ export default async function TokenDetailView({ id }: { id: string }) {
               basePrice={token.basePrice}
               baseHoldings={token.baseHoldings}
               targetBuyPrice={token.targetBuyPrice}
+              rebuyTopUpUsd={token.rebuyTopUpUsd}
+              netSellProceeds={ladder.netSellProceeds}
             />
           </section>
         </div>
@@ -178,7 +166,7 @@ export default async function TokenDetailView({ id }: { id: string }) {
                 Rebuy Ladder
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                % drop below recent high, deploying % of Cash Bucket Contributions
+                % drop below recent high, deploying % of this token&apos;s rebuy budget
               </p>
             </div>
             <div className="p-6 flex-1">
@@ -240,7 +228,7 @@ export default async function TokenDetailView({ id }: { id: string }) {
                         {tx.type}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-muted-foreground text-xs">{tx.fundedBy ?? "—"}</td>
+                    <td className="px-6 py-4 text-muted-foreground text-xs">{fundedByLabel(tx.fundedBy)}</td>
                     <td className="px-6 py-4 text-right font-mono text-foreground">
                       {tx.quantity !== null ? formatQty(tx.quantity) : "—"}
                     </td>
@@ -254,9 +242,18 @@ export default async function TokenDetailView({ id }: { id: string }) {
                       {tx.note ?? ""}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <DeleteButton
-                        url={`/api/transactions/${tx.id}`}
-                        confirmText="Delete this transaction? Any rung it triggered will stay triggered."
+                      <TransactionActions
+                        tx={{
+                          id: tx.id,
+                          symbol: token.symbol,
+                          type: tx.type,
+                          fundedBy: tx.fundedBy,
+                          quantity: tx.quantity,
+                          pricePerUnit: tx.pricePerUnit,
+                          usdAmount: tx.usdAmount,
+                          note: tx.note,
+                          occurredAt: tx.occurredAt.toISOString(),
+                        }}
                       />
                     </td>
                   </tr>

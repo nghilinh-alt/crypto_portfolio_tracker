@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { formatPrice, formatUsd, formatQty } from "@/lib/format";
 
@@ -20,9 +21,7 @@ export type TokenOption = {
   name: string;
   currentPrice: number;
   holdingsValueUsd: number;
-  cashBucket: number;
-  taxReserved: number;
-  /** Eligible rebuy rungs' combined deploy amount, already capped at the Cash Bucket. */
+  /** Eligible rebuy rungs' combined deploy amount, already capped at portfolio cash. */
   suggestedRebuyDeployUsd: number;
   pendingSellRungs: RungOption[];
   pendingRebuyRungs: RungOption[];
@@ -39,10 +38,13 @@ function toDatetimeLocal(date: Date): string {
 
 export default function LogTransactionForm({
   tokens,
+  portfolioCash,
   initialTokenId,
   initialType,
 }: {
   tokens: TokenOption[];
+  /** The single spendable portfolio cash balance. */
+  portfolioCash: number;
   initialTokenId?: string;
   initialType?: TxType;
 }) {
@@ -56,6 +58,7 @@ export default function LogTransactionForm({
   const [tokenId, setTokenId] = useState(initialTokenId ?? sortedTokens[0]?.id ?? "");
   const [type, setType] = useState<TxType>(initialType ?? "BUY");
   const token = tokens.find((t) => t.id === tokenId);
+  const isCashMovement = type === "DEPOSIT" || type === "WITHDRAW";
 
   if (tokens.length === 0) {
     return (
@@ -68,7 +71,7 @@ export default function LogTransactionForm({
   return (
     <div className="rounded-2xl border border-border bg-card p-6">
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 mb-6">
-        {type !== "DEPOSIT" && (
+        {!isCashMovement && (
           <label className="block space-y-1.5">
             <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Token</span>
             <select
@@ -93,37 +96,56 @@ export default function LogTransactionForm({
           >
             <option value="BUY">BUY</option>
             <option value="SELL">SELL</option>
-            <option value="DEPOSIT">DEPOSIT</option>
-            <option value="WITHDRAW">WITHDRAW</option>
+            <option value="DEPOSIT">DEPOSIT (add cash)</option>
+            <option value="WITHDRAW">WITHDRAW (take cash out)</option>
           </select>
         </label>
-        {type !== "DEPOSIT" && token && (
-          <div className="block space-y-1.5 sm:col-start-4">
-            <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Cash Bucket</span>
-            <div className="flex h-10 items-center rounded-md border border-border/50 bg-muted/20 px-3 py-2 text-sm font-mono text-foreground">
-              {formatUsd(token.cashBucket)}
-            </div>
+        <div className="block space-y-1.5 sm:col-start-4">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Portfolio Cash</span>
+          <div className="flex h-10 items-center rounded-md border border-border/50 bg-muted/20 px-3 py-2 text-sm font-mono text-foreground">
+            {formatUsd(portfolioCash)}
           </div>
-        )}
+        </div>
       </div>
 
-      {type === "DEPOSIT" ? (
-        <DepositToPoolFields key="deposit" />
+      {isCashMovement ? (
+        <CashMovementFields
+          key={type}
+          direction={type === "DEPOSIT" ? "IN" : "OUT"}
+          portfolioCash={portfolioCash}
+        />
       ) : (
-        token && <TransactionFields key={`${token.id}:${type}`} token={token} type={type} />
+        token && (
+          <TransactionFields
+            key={`${token.id}:${type}`}
+            token={token}
+            type={type as "BUY" | "SELL"}
+            portfolioCash={portfolioCash}
+          />
+        )
       )}
     </div>
   );
 }
 
-function DepositToPoolFields() {
+/** Money crossing Rekt's boundary: a deposit into the account it tracks, or a withdrawal out of it. */
+function CashMovementFields({
+  direction,
+  portfolioCash,
+}: {
+  direction: "IN" | "OUT";
+  portfolioCash: number;
+}) {
   const router = useRouter();
-  const [usdAmount, setUsdAmount] = useState("");
+  const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [occurredAt, setOccurredAt] = useState(() => toDatetimeLocal(new Date()));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  const amt = Number(amount);
+  const cashAfter = amount && !Number.isNaN(amt) ? portfolioCash + (direction === "IN" ? amt : -amt) : null;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -131,26 +153,27 @@ function DepositToPoolFields() {
     setError(null);
     setSuccess(null);
     try {
-      const res = await fetch("/api/cash-pool", {
+      const res = await fetch("/api/cash", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          amount: Number(usdAmount),
+          direction,
+          amount: amt,
           note: note || undefined,
           occurredAt: new Date(occurredAt).toISOString(),
         }),
       });
       const body = await res.json();
       if (!res.ok) {
-        setError(body.error ?? "Failed to log deposit");
+        setError(body.error ?? "Failed to log cash movement");
         return;
       }
-      setSuccess("Deposited to the Portfolio Cash Pool.");
-      setUsdAmount("");
+      setSuccess(direction === "IN" ? "Deposit added to portfolio cash." : "Withdrawal taken from portfolio cash.");
+      setAmount("");
       setNote("");
       router.refresh();
     } catch {
-      setError("Failed to log deposit");
+      setError("Failed to log cash movement");
     } finally {
       setBusy(false);
     }
@@ -173,13 +196,17 @@ function DepositToPoolFields() {
           <input
             type="number"
             step="any"
-            value={usdAmount}
-            onChange={(e) => setUsdAmount(e.target.value)}
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
             required
             className="block w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary h-10"
           />
-          <span className="text-[10px] text-muted-foreground/70">
-            Goes to the untethered Portfolio Cash Pool — assign it to a token later from Cash Buckets.
+          <span className={`text-[10px] ${cashAfter !== null && cashAfter < 0 ? "text-destructive" : "text-muted-foreground/70"}`}>
+            {cashAfter !== null
+              ? `Portfolio cash after this: ${formatUsd(cashAfter)}`
+              : direction === "IN"
+                ? "Money you've put into the account Rekt tracks."
+                : "Money you've taken out of the account Rekt tracks."}
           </span>
         </label>
         <label className="col-span-2 block space-y-1.5 sm:col-span-2">
@@ -193,6 +220,11 @@ function DepositToPoolFields() {
         </label>
       </div>
 
+      <p className="text-xs text-muted-foreground">
+        Paying tax? Don&apos;t log it here — use <Link href="/profit-tax" className="underline underline-offset-2">Log a tax payment</Link> on
+        Profit &amp; Tax. Cash balance doesn&apos;t match your account? Use <strong>Reconcile cash</strong> there.
+      </p>
+
       {error && <p className="text-sm text-destructive">{error}</p>}
       {success && <p className="text-sm text-emerald-500">{success}</p>}
 
@@ -202,14 +234,22 @@ function DepositToPoolFields() {
           disabled={busy}
           className="rounded-md bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors w-full sm:w-auto"
         >
-          {busy ? "Logging…" : "Log Transaction"}
+          {busy ? "Logging…" : direction === "IN" ? "Log Deposit" : "Log Withdrawal"}
         </button>
       </div>
     </form>
   );
 }
 
-function TransactionFields({ token, type }: { token: TokenOption; type: TxType }) {
+function TransactionFields({
+  token,
+  type,
+  portfolioCash,
+}: {
+  token: TokenOption;
+  type: "BUY" | "SELL";
+  portfolioCash: number;
+}) {
   const router = useRouter();
   const [fundedBy, setFundedBy] = useState<"CASH_BUCKET" | "EXTERNAL">("CASH_BUCKET");
   // Pre-fill with the sum of whatever sell rungs are eligible right now (same
@@ -217,21 +257,17 @@ function TransactionFields({ token, type }: { token: TokenOption; type: TxType }
   const [quantity, setQuantity] = useState(() => {
     if (type === "BUY") {
       // Same figure the Action Centre card shows: the eligible rebuy rungs'
-      // deploy amount (already capped at the Cash Bucket) at today's price.
+      // deploy amount (already capped at portfolio cash) at today's price.
       const hasEligibleRung = token.pendingRebuyRungs.some((r) => r.isEligible);
       if (!hasEligibleRung || token.currentPrice <= 0 || token.suggestedRebuyDeployUsd <= 0) return "";
       return String(Number((token.suggestedRebuyDeployUsd / token.currentPrice).toPrecision(10)));
     }
-    if (type !== "SELL") return "";
     const eligibleQty = token.pendingSellRungs
       .filter((r) => r.isEligible)
       .reduce((sum, r) => sum + (r.suggestedQty ?? 0), 0);
     return eligibleQty > 0 ? String(eligibleQty) : "";
   });
   const [pricePerUnit, setPricePerUnit] = useState(String(token.currentPrice));
-  const [usdAmount, setUsdAmount] = useState(
-    type === "WITHDRAW" && token.taxReserved > 0 ? String(token.taxReserved.toFixed(2)) : ""
-  );
   const [selectedSellRungs, setSelectedSellRungs] = useState<Set<string>>(
     () => new Set(token.pendingSellRungs.filter((r) => r.isEligible).map((r) => r.id))
   );
@@ -246,6 +282,8 @@ function TransactionFields({ token, type }: { token: TokenOption; type: TxType }
 
   const computedUsd =
     quantity && pricePerUnit ? Number(quantity) * Number(pricePerUnit) : undefined;
+  const hasTotal = computedUsd !== undefined && !Number.isNaN(computedUsd);
+  const cashAfterBuy = hasTotal ? portfolioCash - (computedUsd as number) : null;
 
   function toggle(set: Set<string>, id: string, setter: (s: Set<string>) => void) {
     const next = new Set(set);
@@ -279,19 +317,14 @@ function TransactionFields({ token, type }: { token: TokenOption; type: TxType }
       type,
       note: note || undefined,
       occurredAt: new Date(occurredAt).toISOString(),
+      quantity: Number(quantity),
+      pricePerUnit: Number(pricePerUnit),
     };
-
-    if (type === "DEPOSIT" || type === "WITHDRAW") {
-      payload.usdAmount = Number(usdAmount);
-    } else {
-      payload.quantity = Number(quantity);
-      payload.pricePerUnit = Number(pricePerUnit);
-      if (type === "BUY") {
-        payload.fundedBy = fundedBy;
-        if (selectedRebuyRungs.size > 0) payload.rebuyRungIds = [...selectedRebuyRungs];
-      } else {
-        if (selectedSellRungs.size > 0) payload.sellRungIds = [...selectedSellRungs];
-      }
+    if (type === "BUY") {
+      payload.fundedBy = fundedBy;
+      if (selectedRebuyRungs.size > 0) payload.rebuyRungIds = [...selectedRebuyRungs];
+    } else if (selectedSellRungs.size > 0) {
+      payload.sellRungIds = [...selectedSellRungs];
     }
 
     try {
@@ -307,7 +340,6 @@ function TransactionFields({ token, type }: { token: TokenOption; type: TxType }
       }
       setSuccess(`Logged ${type} for ${token.symbol}`);
       setQuantity("");
-      setUsdAmount("");
       setNote("");
       router.refresh();
     } catch {
@@ -322,15 +354,30 @@ function TransactionFields({ token, type }: { token: TokenOption; type: TxType }
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 border-t border-border/50 pt-6">
         {type === "BUY" && (
           <label className="block space-y-1.5">
-            <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Funded By</span>
+            <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Paid From</span>
             <select
               value={fundedBy}
               onChange={(e) => setFundedBy(e.target.value as "CASH_BUCKET" | "EXTERNAL")}
               className="block w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary h-10"
             >
-              <option value="CASH_BUCKET">Cash Bucket</option>
-              <option value="EXTERNAL">External</option>
+              <option value="CASH_BUCKET">Portfolio cash</option>
+              <option value="EXTERNAL">Outside Rekt</option>
             </select>
+            <span
+              className={`text-[10px] ${
+                fundedBy === "CASH_BUCKET" && cashAfterBuy !== null && cashAfterBuy < 0
+                  ? "text-destructive"
+                  : "text-muted-foreground/70"
+              }`}
+            >
+              {fundedBy === "CASH_BUCKET"
+                ? cashAfterBuy !== null
+                  ? cashAfterBuy < 0
+                    ? `Not enough cash (${formatUsd(portfolioCash)}) — deposit first or pick Outside Rekt`
+                    : `Portfolio cash after this: ${formatUsd(cashAfterBuy)}`
+                  : "Comes out of your cash balance"
+                : "Paid from elsewhere — cash balance unchanged"}
+            </span>
           </label>
         )}
 
@@ -344,56 +391,39 @@ function TransactionFields({ token, type }: { token: TokenOption; type: TxType }
           />
         </label>
 
-        {type === "DEPOSIT" || type === "WITHDRAW" ? (
-          <label className="block space-y-1.5">
-            <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Amount (USD)</span>
-            <input
-              type="number"
-              step="any"
-              value={usdAmount}
-              onChange={(e) => setUsdAmount(e.target.value)}
-              required
-              className="block w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary h-10"
-            />
-            {type === "WITHDRAW" && (
-              <span className="text-[10px] text-muted-foreground/70">
-                Cash Bucket: {formatUsd(token.cashBucket)}
-                {token.taxReserved > 0 && ` · Tax Reserved: ${formatUsd(token.taxReserved)}`}
-              </span>
-            )}
-          </label>
-        ) : (
-          <>
-            <label className="block space-y-1.5">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Quantity</span>
-              <input
-                type="number"
-                step="any"
-                value={quantity}
-                onChange={(e) => setQuantity(e.target.value)}
-                required
-                className="block w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary h-10"
-              />
-            </label>
-            <label className="block space-y-1.5">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Price / Unit (USD)</span>
-              <input
-                type="number"
-                step="any"
-                value={pricePerUnit}
-                onChange={(e) => setPricePerUnit(e.target.value)}
-                required
-                className="block w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary h-10"
-              />
-            </label>
-            <div className="block space-y-1.5 sm:col-start-4">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Total (USD)</span>
-              <div className="flex h-10 items-center rounded-md border border-border/50 bg-muted/20 px-3 py-2 text-sm font-mono text-foreground">
-                {computedUsd !== undefined && !Number.isNaN(computedUsd) ? formatUsd(computedUsd) : "—"}
-              </div>
-            </div>
-          </>
-        )}
+        <label className="block space-y-1.5">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Quantity</span>
+          <input
+            type="number"
+            step="any"
+            value={quantity}
+            onChange={(e) => setQuantity(e.target.value)}
+            required
+            className="block w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary h-10"
+          />
+        </label>
+        <label className="block space-y-1.5">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Price / Unit (USD)</span>
+          <input
+            type="number"
+            step="any"
+            value={pricePerUnit}
+            onChange={(e) => setPricePerUnit(e.target.value)}
+            required
+            className="block w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary h-10"
+          />
+        </label>
+        <div className="block space-y-1.5 sm:col-start-4">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Total (USD)</span>
+          <div className="flex h-10 items-center rounded-md border border-border/50 bg-muted/20 px-3 py-2 text-sm font-mono text-foreground">
+            {hasTotal ? formatUsd(computedUsd as number) : "—"}
+          </div>
+          {type === "SELL" && (
+            <span className="text-[10px] text-muted-foreground/70">
+              Proceeds, less the tax Rekt sets aside, are added to portfolio cash
+            </span>
+          )}
+        </div>
 
         <label className="col-span-2 block space-y-1.5 sm:col-span-4">
           <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Note (Optional)</span>
@@ -423,7 +453,7 @@ function TransactionFields({ token, type }: { token: TokenOption; type: TxType }
         <RungCheckboxes
           title="Rebuy rungs this transaction satisfies"
           sign="-"
-          portionSuffix="of contributions"
+          portionSuffix="of rebuy budget"
           rungs={token.pendingRebuyRungs}
           selected={selectedRebuyRungs}
           onToggle={(id) => toggle(selectedRebuyRungs, id, setSelectedRebuyRungs)}

@@ -53,6 +53,7 @@ export const updateTokenSchema = z.object({
   baseHoldings: z.number().nonnegative().optional(),
   targetBuyPrice: z.number().positive().optional().nullable(),
   isFavorite: z.boolean().optional(),
+  rebuyTopUpUsd: z.number().optional(),
 });
 
 export const createSellRungSchema = z.object({
@@ -77,84 +78,41 @@ export const updateRebuyRungSchema = z.object({
   status: z.enum(["PENDING", "TRIGGERED"]).optional(),
 });
 
+// Token transactions are trades only. Cash going in or out of Rekt is a
+// portfolio-level cash movement (createCashMovementSchema), not a per-token
+// DEPOSIT/WITHDRAW.
 export const createTransactionSchema = z
   .object({
     tokenId: z.string().min(1),
-    type: z.enum(["BUY", "SELL", "DEPOSIT", "WITHDRAW"]),
+    type: z.enum(["BUY", "SELL"]),
     fundedBy: z.enum(["CASH_BUCKET", "EXTERNAL"]).optional().nullable(),
-    quantity: z.number().positive().optional(),
-    pricePerUnit: z.number().positive().optional(),
-    usdAmount: z.number().positive().optional(),
+    quantity: z.number().positive(),
+    pricePerUnit: z.number().positive(),
     sellRungIds: z.array(z.string().min(1)).optional(),
     rebuyRungIds: z.array(z.string().min(1)).optional(),
     note: z.string().trim().max(500).optional().nullable(),
     occurredAt: z.string().datetime().optional(),
   })
   .superRefine((data, ctx) => {
-    if (data.type === "DEPOSIT" || data.type === "WITHDRAW") {
-      if (data.usdAmount === undefined) {
-        ctx.addIssue({
-          code: "custom",
-          message: `usdAmount is required for ${data.type}`,
-          path: ["usdAmount"],
-        });
-      }
-      if (data.quantity !== undefined || data.pricePerUnit !== undefined) {
-        ctx.addIssue({
-          code: "custom",
-          message: `${data.type} does not take quantity/pricePerUnit`,
-          path: ["quantity"],
-        });
-      }
-      if (data.sellRungIds?.length || data.rebuyRungIds?.length) {
-        ctx.addIssue({
-          code: "custom",
-          message: `${data.type} cannot satisfy rungs`,
-          path: ["sellRungIds"],
-        });
-      }
-    } else {
-      if (data.quantity === undefined || data.pricePerUnit === undefined) {
-        ctx.addIssue({
-          code: "custom",
-          message: "quantity and pricePerUnit are required for BUY/SELL",
-          path: ["quantity"],
-        });
-      }
-      if (data.type === "BUY" && !data.fundedBy) {
-        ctx.addIssue({
-          code: "custom",
-          message: "fundedBy is required for BUY",
-          path: ["fundedBy"],
-        });
-      }
-      if (data.type === "SELL" && data.rebuyRungIds?.length) {
-        ctx.addIssue({
-          code: "custom",
-          message: "SELL cannot satisfy rebuy rungs",
-          path: ["rebuyRungIds"],
-        });
-      }
-      if (data.type === "BUY" && data.sellRungIds?.length) {
-        ctx.addIssue({
-          code: "custom",
-          message: "BUY cannot satisfy sell rungs",
-          path: ["sellRungIds"],
-        });
-      }
+    if (data.type === "BUY" && !data.fundedBy) {
+      ctx.addIssue({ code: "custom", message: "fundedBy is required for BUY", path: ["fundedBy"] });
+    }
+    if (data.type === "SELL" && data.rebuyRungIds?.length) {
+      ctx.addIssue({ code: "custom", message: "SELL cannot satisfy rebuy rungs", path: ["rebuyRungIds"] });
+    }
+    if (data.type === "BUY" && data.sellRungIds?.length) {
+      ctx.addIssue({ code: "custom", message: "BUY cannot satisfy sell rungs", path: ["sellRungIds"] });
     }
   });
 
 export type CreateTransactionInput = z.infer<typeof createTransactionSchema>;
 
-// Which fields are accepted depends on the existing transaction's type — the
-// route enforces that (BUY/SELL take quantity/price, DEPOSIT/WITHDRAW take
-// usdAmount, only BUY has a funding source). Type and token never change.
+// Editable fields on a logged trade (BUY/SELL). Only a BUY has a funding
+// source; type and token never change.
 export const updateTransactionSchema = z.object({
   fundedBy: z.enum(["CASH_BUCKET", "EXTERNAL"]).optional(),
   quantity: z.number().positive().optional(),
   pricePerUnit: z.number().positive().optional(),
-  usdAmount: z.number().positive().optional(),
   note: z.string().trim().max(500).optional().nullable(),
   occurredAt: z.string().datetime().optional(),
 });
@@ -199,49 +157,25 @@ export const applyCategorySchema = z.object({
   categoryId: z.string().trim().min(1),
 });
 
-// Direct token-to-token cash transfer — logs a WITHDRAW on the source and a
-// DEPOSIT on the destination, atomically.
-export const transferCashSchema = z.object({
-  toTokenId: z.string().trim().min(1),
-  amount: z.number().positive(),
-  note: z.string().trim().max(500).optional().nullable(),
-});
-
-// Move a token's cash bucket into the untethered portfolio pool.
-export const cashToPoolSchema = z.object({
-  amount: z.number().positive(),
-  note: z.string().trim().max(500).optional().nullable(),
-});
-
-// Assign pool cash into a specific token's cash bucket.
-export const poolToTokenSchema = z.object({
-  tokenId: z.string().trim().min(1),
-  amount: z.number().positive(),
-  note: z.string().trim().max(500).optional().nullable(),
-});
-
-// External money deposited straight into the untethered portfolio pool —
-// not tied to any one token until it's later assigned.
-export const depositToPoolSchema = z.object({
+// Cash going into (IN, a deposit) or out of (OUT, a withdrawal) Rekt's single
+// portfolio cash balance.
+export const createCashMovementSchema = z.object({
+  direction: z.enum(["IN", "OUT"]),
   amount: z.number().positive(),
   note: z.string().trim().max(500).optional().nullable(),
   occurredAt: z.string().datetime().optional(),
 });
 
-// Money actually leaving the strategy straight from the untethered pool —
-// the pool-only counterpart to a token's own WITHDRAW.
-export const withdrawFromPoolSchema = z.object({
-  amount: z.number().positive(),
-  note: z.string().trim().max(500).optional().nullable(),
-});
-
-// Withdraw across every token's Cash Bucket plus the pool balance in one go.
-// If `amount` is omitted, withdraws everything; if given (must be <= the
-// total available), each bucket and the pool are drawn down by the same
-// proportion, so a partial withdrawal reduces every bucket by the same %.
-export const withdrawAllSchema = z.object({
+export const updateCashMovementSchema = z.object({
   amount: z.number().positive().optional(),
   note: z.string().trim().max(500).optional().nullable(),
+  occurredAt: z.string().datetime().optional(),
+});
+
+// "Reconcile cash": the real balance your account shows right now. Rekt
+// records the difference from its own estimate as one visible adjustment.
+export const reconcileCashSchema = z.object({
+  actualBalance: z.number().nonnegative(),
 });
 
 // A real-world tax payment covering realized profit withheld across ALL

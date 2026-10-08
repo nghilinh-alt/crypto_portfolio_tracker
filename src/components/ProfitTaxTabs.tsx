@@ -3,30 +3,20 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import TokenAvatar from "./TokenAvatar";
-import PortfolioCashPool from "./PortfolioCashPool";
 import TaxPaymentPanel from "./TaxPaymentPanel";
-import WithdrawAllButton from "./WithdrawAllButton";
+import ReconcileCash from "./ReconcileCash";
+import CashLedger, { type CashLedgerDto } from "./CashLedger";
 import { formatUsd, formatDate } from "@/lib/format";
 import { assetDetailHref } from "@/lib/assetRoute";
 
-export type CashBucketToken = {
+export type ProfitTaxToken = {
   id: string;
   symbol: string;
   iconUrl: string | null;
   assetType: "CRYPTO" | "STOCK" | "BULLION";
-  cashBucket: number;
-  cashBucketContributions: number;
-  taxReserved: number;
   realizedProfit: number;
-};
-
-export type PoolTransaction = {
-  id: string;
-  occurredAt: string; // ISO
-  direction: "IN" | "OUT";
-  amount: number;
-  tokenSymbol: string | null;
-  note: string | null;
+  taxReserved: number;
+  rebuyBudget: number;
 };
 
 export type TaxPaymentRow = {
@@ -45,18 +35,26 @@ const TABS: Array<{ key: Tab; label: string }> = [
   { key: "BULLION", label: "Bullion" },
 ];
 
-export default function CashBucketsTabs({
+export default function ProfitTaxTabs({
   tokens,
-  poolBalance,
-  poolTransactions,
+  cash,
+  taxOwing,
+  estAccountCash,
   totalTaxPaid,
   taxPayments,
+  ledger,
+  lastReconciledAt,
+  lastReconciledBalance,
 }: {
-  tokens: CashBucketToken[];
-  poolBalance: number;
-  poolTransactions: PoolTransaction[];
+  tokens: ProfitTaxToken[];
+  cash: number;
+  taxOwing: number;
+  estAccountCash: number;
   totalTaxPaid: number;
   taxPayments: TaxPaymentRow[];
+  ledger: CashLedgerDto[];
+  lastReconciledAt: string | null;
+  lastReconciledBalance: number | null;
 }) {
   const [tab, setTab] = useState<Tab>("ALL");
 
@@ -65,8 +63,8 @@ export default function CashBucketsTabs({
     [tokens, tab]
   );
 
-  const sortedByCashBucket = useMemo(
-    () => filtered.slice().sort((a, b) => b.cashBucket - a.cashBucket),
+  const sortedByProfit = useMemo(
+    () => filtered.slice().sort((a, b) => b.realizedProfit - a.realizedProfit),
     [filtered]
   );
 
@@ -74,16 +72,22 @@ export default function CashBucketsTabs({
     () =>
       filtered.reduce(
         (acc, t) => {
-          acc.cashBucket += t.cashBucket;
-          acc.contributions += t.cashBucketContributions;
           acc.taxReserved += t.taxReserved;
           acc.realizedProfit += t.realizedProfit;
           return acc;
         },
-        { cashBucket: 0, contributions: 0, taxReserved: 0, realizedProfit: 0 }
+        { taxReserved: 0, realizedProfit: 0 }
       ),
     [filtered]
   );
+
+  // What's been logged since the last reconcile — a nudge to re-check, not a forecast.
+  const since = useMemo(() => {
+    if (!lastReconciledAt) return { count: 0, net: 0 };
+    const cutoff = new Date(lastReconciledAt).getTime();
+    const after = ledger.filter((r) => new Date(r.occurredAt).getTime() > cutoff && r.kind !== "ADJUSTMENT");
+    return { count: after.length, net: after.reduce((sum, r) => sum + r.delta, 0) };
+  }, [ledger, lastReconciledAt]);
 
   return (
     <div className="space-y-10">
@@ -106,23 +110,28 @@ export default function CashBucketsTabs({
         </div>
       </div>
 
-      {/* Row 1: where the money is. Row 2: what it earned and what's owed on it. */}
+      {/* Row 1: the cash. Row 2: what it earned and what's owed on it. */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <SummaryTile
-          label={tab === "ALL" ? "Total Cash Bucket" : "Cash Bucket"}
-          value={formatUsd(totals.cashBucket)}
-          sub={`From ${formatUsd(totals.contributions)} contributions`}
-        />
         {tab === "ALL" && (
           <>
-            <PortfolioCashPool
-              balance={poolBalance}
-              tokens={tokens.map((t) => ({ id: t.id, symbol: t.symbol }))}
+            <SummaryTile
+              label="Portfolio Cash"
+              value={formatUsd(cash)}
+              sub="Spendable — excludes the tax set aside"
             />
-            <WithdrawAllButton
-              totalCashBucket={totals.cashBucket}
-              poolBalance={poolBalance}
-              tokenCount={tokens.filter((t) => t.cashBucket > 0).length}
+            <SummaryTile
+              label="Est. Cash in Account"
+              value={formatUsd(estAccountCash)}
+              sub={`Cash + ${formatUsd(taxOwing)} tax owing — compare this to your real balance`}
+            />
+            <ReconcileCash
+              cash={cash}
+              taxOwing={taxOwing}
+              estAccountCash={estAccountCash}
+              lastReconciledAt={lastReconciledAt}
+              lastReconciledBalance={lastReconciledBalance}
+              sinceCount={since.count}
+              sinceNet={since.net}
             />
           </>
         )}
@@ -140,7 +149,7 @@ export default function CashBucketsTabs({
       </div>
 
       <div className="space-y-4">
-        <h2 className="text-2xl font-display font-medium text-foreground">Per-Token Buckets</h2>
+        <h2 className="text-2xl font-display font-medium text-foreground">Profit by Token</h2>
         {filtered.length === 0 ? (
           <p className="rounded-2xl border border-dashed border-border bg-card/50 p-8 text-center text-sm text-muted-foreground">
             {tab === "ALL"
@@ -151,12 +160,14 @@ export default function CashBucketsTabs({
           <div className="overflow-hidden rounded-2xl border border-border bg-card">
             <div className="hidden md:grid grid-cols-[minmax(200px,2fr)_1fr_1fr_1fr] gap-4 border-b border-border/60 bg-muted/30 px-6 py-3 text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
               <span>Token</span>
-              <span className="text-right">Cash Bucket</span>
-              <span className="text-right">Contributions</span>
+              <span className="text-right">Realised Profit</span>
               <span className="text-right">Tax Reserved</span>
+              <span className="text-right" title="What rebuy Deploy % applies to: net sell proceeds plus any top-up">
+                Rebuy Budget
+              </span>
             </div>
             <div className="divide-y divide-border/50">
-              {sortedByCashBucket.map((t) => (
+              {sortedByProfit.map((t) => (
                 <Link
                   key={t.id}
                   href={assetDetailHref(t.assetType, t.id)}
@@ -166,11 +177,15 @@ export default function CashBucketsTabs({
                     <TokenAvatar symbol={t.symbol} iconUrl={t.iconUrl} className="h-8 w-8 text-xs" />
                     <span className="font-medium text-foreground">{t.symbol}</span>
                   </div>
-                  <div className="text-right font-mono text-sm text-foreground">{formatUsd(t.cashBucket)}</div>
-                  <div className="text-right font-mono text-sm text-muted-foreground">
-                    {formatUsd(t.cashBucketContributions)}
+                  <div
+                    className={`text-right font-mono text-sm ${
+                      t.realizedProfit > 0 ? "text-emerald-500" : t.realizedProfit < 0 ? "text-destructive" : "text-muted-foreground"
+                    }`}
+                  >
+                    {formatUsd(t.realizedProfit)}
                   </div>
                   <div className="text-right font-mono text-sm text-muted-foreground">{formatUsd(t.taxReserved)}</div>
+                  <div className="text-right font-mono text-sm text-muted-foreground">{formatUsd(t.rebuyBudget)}</div>
                 </Link>
               ))}
             </div>
@@ -180,38 +195,14 @@ export default function CashBucketsTabs({
 
       {tab === "ALL" && (
         <div className="space-y-4">
-          <h2 className="text-2xl font-display font-medium text-foreground">Portfolio Pool Activity</h2>
-          {poolTransactions.length === 0 ? (
-            <p className="rounded-2xl border border-dashed border-border bg-card/50 p-8 text-center text-sm text-muted-foreground">
-              No pool movements yet.
+          <div>
+            <h2 className="text-2xl font-display font-medium text-foreground">Cash Ledger</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Every movement in Portfolio Cash with the running balance — deposits, withdrawals, sells (after tax set
+              aside), buys paid from cash, and reconcile adjustments.
             </p>
-          ) : (
-            <div className="overflow-hidden rounded-2xl border border-border bg-card">
-              <div className="hidden md:grid grid-cols-[1.4fr_.6fr_1fr_.8fr_1.6fr] gap-4 border-b border-border/60 bg-muted/30 px-6 py-3 text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
-                <span>Date</span>
-                <span>Direction</span>
-                <span className="text-right">Amount</span>
-                <span>Token</span>
-                <span>Note</span>
-              </div>
-              <div className="divide-y divide-border/50">
-                {poolTransactions.map((tx) => (
-                  <div
-                    key={tx.id}
-                    className="grid grid-cols-2 items-center gap-4 px-6 py-3 text-sm md:grid-cols-[1.4fr_.6fr_1fr_.8fr_1.6fr]"
-                  >
-                    <span className="text-muted-foreground">{formatDate(tx.occurredAt)}</span>
-                    <span className={tx.direction === "IN" ? "font-medium text-emerald-500" : "font-medium text-destructive"}>
-                      {tx.direction}
-                    </span>
-                    <span className="text-right font-mono text-foreground">{formatUsd(tx.amount)}</span>
-                    <span className="text-muted-foreground">{tx.tokenSymbol ?? "—"}</span>
-                    <span className="truncate text-muted-foreground">{tx.note ?? "—"}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          </div>
+          <CashLedger rows={ledger} />
         </div>
       )}
 

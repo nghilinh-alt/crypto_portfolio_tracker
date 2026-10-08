@@ -1,11 +1,11 @@
-import { getAllTokensWithLadder } from "@/lib/data";
-import { TAX_RESERVE_RATE } from "@/lib/cashBucket";
+import { getPortfolioOverview } from "@/lib/data";
+import { TAX_RESERVE_RATE } from "@/lib/position";
 import ActionCentreTabs from "@/components/ActionCentreTabs";
 
 export const dynamic = "force-dynamic";
 
 export default async function ActionCentrePage() {
-  const tokens = await getAllTokensWithLadder();
+  const { tokens, cash } = await getPortfolioOverview();
 
   const mapped = tokens.map((t) => ({
     id: t.id,
@@ -50,7 +50,11 @@ export default async function ActionCentrePage() {
         </div>
       </header>
 
-      <ActionCentreTabs tokens={mapped} taxReserveRatePct={TAX_RESERVE_RATE * 100} />
+      <ActionCentreTabs
+        tokens={mapped}
+        taxReserveRatePct={TAX_RESERVE_RATE * 100}
+        portfolioCash={cash.cash}
+      />
     </div>
   );
 }

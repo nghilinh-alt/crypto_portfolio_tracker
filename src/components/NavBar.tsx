@@ -11,7 +11,7 @@ const LINKS = [
   { href: "/tokens", label: "Tokens" },
   { href: "/stocks", label: "Stocks" },
   { href: "/bullion", label: "Bullion" },
-  { href: "/cash-buckets", label: "Cash Buckets" },
+  { href: "/profit-tax", label: "Profit & Tax" },
   { href: "/transactions", label: "Transactions" },
   { href: "/categories", label: "Categories" },
 ];

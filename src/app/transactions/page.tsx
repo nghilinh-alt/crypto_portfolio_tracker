@@ -1,11 +1,15 @@
 import Link from "next/link";
-import { getAllTokensWithLadder } from "@/lib/data";
+import { getPortfolioOverview } from "@/lib/data";
 import { prisma } from "@/lib/prisma";
 import LogTransactionForm, { type TokenOption } from "@/components/LogTransactionForm";
 import TransactionActions from "@/components/TransactionActions";
+import CashMovementActions from "@/components/CashMovementActions";
 import { formatUsd, formatPrice, formatQty, formatDate } from "@/lib/format";
+import { fundedByLabel, cashMovementLabel } from "@/lib/labels";
 
 export const dynamic = "force-dynamic";
+
+const RECENT_LIMIT = 50;
 
 export default async function TransactionsPage({
   searchParams,
@@ -13,7 +17,7 @@ export default async function TransactionsPage({
   searchParams: Promise<{ tokenId?: string; type?: string }>;
 }) {
   const { tokenId, type } = await searchParams;
-  const tokens = await getAllTokensWithLadder();
+  const { tokens, cash } = await getPortfolioOverview();
 
   const tokenOptions: TokenOption[] = tokens.map((t) => ({
     id: t.id,
@@ -21,8 +25,6 @@ export default async function TransactionsPage({
     name: t.name,
     currentPrice: t.currentPrice,
     holdingsValueUsd: t.ladder.holdingsValueUsd,
-    cashBucket: t.ladder.cashBucket,
-    taxReserved: t.ladder.taxReserved,
     suggestedRebuyDeployUsd: t.ladder.suggestedRebuyDeployUsd,
     pendingSellRungs: t.ladder.sellRungs
       .filter((r) => r.status === "PENDING")
@@ -45,11 +47,26 @@ export default async function TransactionsPage({
       })),
   }));
 
-  const recentTransactions = await prisma.transaction.findMany({
-    include: { token: { select: { symbol: true } } },
-    orderBy: { occurredAt: "desc" },
-    take: 50,
-  });
+  // Trades and portfolio cash movements live in different tables; take the
+  // newest of each, merge, and show the newest overall.
+  const [trades, cashMovements] = await Promise.all([
+    prisma.transaction.findMany({
+      include: { token: { select: { symbol: true } } },
+      orderBy: { occurredAt: "desc" },
+      take: RECENT_LIMIT,
+    }),
+    prisma.portfolioCashTransaction.findMany({ orderBy: { occurredAt: "desc" }, take: RECENT_LIMIT }),
+  ]);
+
+  type Row =
+    | { kind: "trade"; at: Date; tx: (typeof trades)[number] }
+    | { kind: "cash"; at: Date; m: (typeof cashMovements)[number] };
+  const rows: Row[] = [
+    ...trades.map((tx): Row => ({ kind: "trade", at: tx.occurredAt, tx })),
+    ...cashMovements.map((m): Row => ({ kind: "cash", at: m.occurredAt, m })),
+  ]
+    .sort((a, b) => b.at.getTime() - a.at.getTime())
+    .slice(0, RECENT_LIMIT);
 
   const initialType =
     type === "BUY" || type === "SELL" || type === "DEPOSIT" || type === "WITHDRAW"
@@ -62,7 +79,8 @@ export default async function TransactionsPage({
         <div>
           <h1 className="text-4xl font-display font-semibold tracking-tight md:text-5xl text-foreground">Transactions</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Every BUY, SELL, and DEPOSIT — the source of truth for the Cash Bucket and rung state.
+            Every BUY and SELL, plus cash deposits and withdrawals — the source of truth for portfolio cash and rung
+            state.
           </p>
         </div>
       </header>
@@ -74,7 +92,12 @@ export default async function TransactionsPage({
             Log Transaction
           </h2>
         </div>
-        <LogTransactionForm tokens={tokenOptions} initialTokenId={tokenId} initialType={initialType} />
+        <LogTransactionForm
+          tokens={tokenOptions}
+          portfolioCash={cash.cash}
+          initialTokenId={tokenId}
+          initialType={initialType}
+        />
       </section>
 
       <section>
@@ -85,7 +108,7 @@ export default async function TransactionsPage({
           </h2>
         </div>
         <div className="overflow-x-auto rounded-2xl border border-border bg-card">
-          {recentTransactions.length === 0 ? (
+          {rows.length === 0 ? (
             <p className="p-8 text-center text-sm text-muted-foreground bg-muted/10">Nothing logged yet.</p>
           ) : (
             <table className="min-w-full divide-y divide-border/50 text-sm">
@@ -94,7 +117,7 @@ export default async function TransactionsPage({
                   <th className="px-6 py-3">Date</th>
                   <th className="px-6 py-3">Token</th>
                   <th className="px-6 py-3">Type</th>
-                  <th className="px-6 py-3">Funded By</th>
+                  <th className="px-6 py-3">Paid From</th>
                   <th className="px-6 py-3 text-right">Qty</th>
                   <th className="px-6 py-3 text-right">Price/Unit</th>
                   <th className="px-6 py-3 text-right">USD</th>
@@ -105,51 +128,99 @@ export default async function TransactionsPage({
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/50">
-                {recentTransactions.map((tx) => (
-                  <tr key={tx.id} className="group hover:bg-muted/40 transition-colors">
-                    <td className="whitespace-nowrap px-6 py-4 text-muted-foreground font-mono text-xs">
-                      {formatDate(tx.occurredAt)}
-                    </td>
-                    <td className="px-6 py-4">
-                      <Link href={`/tokens/${tx.tokenId}`} className="font-medium text-foreground hover:text-primary transition-colors">
-                        {tx.token.symbol}
-                      </Link>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-mono uppercase tracking-wider font-semibold ring-1 ring-inset ${tx.type === 'SELL' ? 'bg-destructive/20 text-destructive ring-destructive/30' : tx.type === 'BUY' ? 'bg-emerald-500/20 text-emerald-400 ring-emerald-500/30' : 'bg-secondary text-secondary-foreground ring-border'}`}>
-                        {tx.type}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-muted-foreground text-xs">{tx.fundedBy ?? "—"}</td>
-                    <td className="px-6 py-4 text-right font-mono text-foreground">
-                      {tx.quantity !== null ? formatQty(tx.quantity) : "—"}
-                    </td>
-                    <td className="px-6 py-4 text-right font-mono text-foreground">
-                      {tx.pricePerUnit !== null ? formatPrice(tx.pricePerUnit) : "—"}
-                    </td>
-                    <td className="px-6 py-4 text-right font-mono text-foreground">
-                      {formatUsd(tx.usdAmount)}
-                    </td>
-                    <td className="max-w-[200px] truncate px-6 py-4 text-muted-foreground">{tx.note ?? "—"}</td>
-                    <td className="sticky right-0 z-10 bg-card p-0 shadow-[-10px_0_10px_-10px_rgba(0,0,0,0.35)]">
-                      <div className="px-6 py-4 transition-colors group-hover:bg-muted/40">
-                        <TransactionActions
-                          tx={{
-                            id: tx.id,
-                            symbol: tx.token.symbol,
-                            type: tx.type,
-                            fundedBy: tx.fundedBy,
-                            quantity: tx.quantity,
-                            pricePerUnit: tx.pricePerUnit,
-                            usdAmount: tx.usdAmount,
-                            note: tx.note,
-                            occurredAt: tx.occurredAt.toISOString(),
-                          }}
-                        />
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {rows.map((row) =>
+                  row.kind === "trade" ? (
+                    <tr key={`tx:${row.tx.id}`} className="group hover:bg-muted/40 transition-colors">
+                      <td className="whitespace-nowrap px-6 py-4 text-muted-foreground font-mono text-xs">
+                        {formatDate(row.tx.occurredAt)}
+                      </td>
+                      <td className="px-6 py-4">
+                        <Link href={`/tokens/${row.tx.tokenId}`} className="font-medium text-foreground hover:text-primary transition-colors">
+                          {row.tx.token.symbol}
+                        </Link>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-mono uppercase tracking-wider font-semibold ring-1 ring-inset ${row.tx.type === 'SELL' ? 'bg-destructive/20 text-destructive ring-destructive/30' : row.tx.type === 'BUY' ? 'bg-emerald-500/20 text-emerald-400 ring-emerald-500/30' : 'bg-secondary text-secondary-foreground ring-border'}`}>
+                          {row.tx.type}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-muted-foreground text-xs">{fundedByLabel(row.tx.fundedBy)}</td>
+                      <td className="px-6 py-4 text-right font-mono text-foreground">
+                        {row.tx.quantity !== null ? formatQty(row.tx.quantity) : "—"}
+                      </td>
+                      <td className="px-6 py-4 text-right font-mono text-foreground">
+                        {row.tx.pricePerUnit !== null ? formatPrice(row.tx.pricePerUnit) : "—"}
+                      </td>
+                      <td className="px-6 py-4 text-right font-mono text-foreground">
+                        {formatUsd(row.tx.usdAmount)}
+                      </td>
+                      <td className="max-w-[200px] truncate px-6 py-4 text-muted-foreground">{row.tx.note ?? "—"}</td>
+                      <td className="sticky right-0 z-10 bg-card p-0 shadow-[-10px_0_10px_-10px_rgba(0,0,0,0.35)]">
+                        <div className="px-6 py-4 transition-colors group-hover:bg-muted/40">
+                          <TransactionActions
+                            tx={{
+                              id: row.tx.id,
+                              symbol: row.tx.token.symbol,
+                              type: row.tx.type,
+                              fundedBy: row.tx.fundedBy,
+                              quantity: row.tx.quantity,
+                              pricePerUnit: row.tx.pricePerUnit,
+                              usdAmount: row.tx.usdAmount,
+                              note: row.tx.note,
+                              occurredAt: row.tx.occurredAt.toISOString(),
+                            }}
+                          />
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    <tr key={`cash:${row.m.id}`} className="group hover:bg-muted/40 transition-colors">
+                      <td className="whitespace-nowrap px-6 py-4 text-muted-foreground font-mono text-xs">
+                        {formatDate(row.m.occurredAt)}
+                      </td>
+                      <td className="px-6 py-4 text-muted-foreground">Portfolio</td>
+                      <td className="px-6 py-4">
+                        <span
+                          className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-mono uppercase tracking-wider font-semibold ring-1 ring-inset ${
+                            row.m.isAdjustment
+                              ? "bg-amber-500/20 text-amber-400 ring-amber-500/30"
+                              : row.m.direction === "IN"
+                                ? "bg-emerald-500/20 text-emerald-400 ring-emerald-500/30"
+                                : "bg-destructive/20 text-destructive ring-destructive/30"
+                          }`}
+                        >
+                          {cashMovementLabel(row.m)}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-muted-foreground text-xs">—</td>
+                      <td className="px-6 py-4 text-right font-mono text-foreground">—</td>
+                      <td className="px-6 py-4 text-right font-mono text-foreground">—</td>
+                      <td
+                        className={`px-6 py-4 text-right font-mono ${
+                          row.m.direction === "IN" ? "text-emerald-500" : "text-destructive"
+                        }`}
+                      >
+                        {row.m.direction === "IN" ? "+" : "−"}
+                        {formatUsd(row.m.amount)}
+                      </td>
+                      <td className="max-w-[200px] truncate px-6 py-4 text-muted-foreground">{row.m.note ?? "—"}</td>
+                      <td className="sticky right-0 z-10 bg-card p-0 shadow-[-10px_0_10px_-10px_rgba(0,0,0,0.35)]">
+                        <div className="px-6 py-4 transition-colors group-hover:bg-muted/40">
+                          <CashMovementActions
+                            movement={{
+                              id: row.m.id,
+                              direction: row.m.direction,
+                              amount: row.m.amount,
+                              note: row.m.note,
+                              occurredAt: row.m.occurredAt.toISOString(),
+                              isAdjustment: row.m.isAdjustment,
+                            }}
+                          />
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                )}
               </tbody>
             </table>
           )}

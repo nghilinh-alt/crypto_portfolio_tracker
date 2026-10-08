@@ -4,6 +4,7 @@ import { getTokenWithLadder } from "@/lib/data";
 import { updateTokenSchema } from "@/lib/validation";
 import { zodErrorResponse, notFound } from "@/lib/apiHelpers";
 import { fetchTokenIconUrl, fetchStockLogoUrl } from "@/lib/tokenIcon";
+import { computePositionFigures, tokenCashFlow } from "@/lib/position";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -50,8 +51,29 @@ export async function PATCH(request: Request, { params }: Ctx) {
 
 export async function DELETE(_request: Request, { params }: Ctx) {
   const { id } = await params;
-  const existing = await prisma.token.findUnique({ where: { id } });
+  const existing = await prisma.token.findUnique({
+    where: { id },
+    include: { transactions: true },
+  });
   if (!existing) return notFound("Token");
-  await prisma.token.delete({ where: { id } });
+
+  // Deleting a token cascades its transactions, and portfolio cash is derived
+  // from them — so what its sells brought in and its cash-funded buys took
+  // out would silently vanish from the balance. Keep the cash where it is by
+  // recording that net effect as an adjustment in the same step.
+  const flow = tokenCashFlow(computePositionFigures(existing.transactions));
+  await prisma.$transaction(async (tx) => {
+    await tx.token.delete({ where: { id } });
+    if (Math.abs(flow) >= 0.005) {
+      await tx.portfolioCashTransaction.create({
+        data: {
+          direction: flow > 0 ? "IN" : "OUT",
+          amount: Math.abs(flow),
+          isAdjustment: true,
+          note: `Cash effect of deleted token ${existing.symbol} kept`,
+        },
+      });
+    }
+  });
   return NextResponse.json({ ok: true });
 }

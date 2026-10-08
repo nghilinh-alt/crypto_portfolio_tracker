@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createTransactionSchema } from "@/lib/validation";
 import { zodErrorResponse, notFound } from "@/lib/apiHelpers";
-import { computeCashBucketFigures } from "@/lib/cashBucket";
+import { getPortfolioCash } from "@/lib/portfolioCash";
+import { formatUsd } from "@/lib/format";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -51,21 +52,17 @@ export async function POST(request: Request) {
     }
   }
 
-  const usdAmount =
-    input.usdAmount ??
-    (input.quantity !== undefined && input.pricePerUnit !== undefined
-      ? input.quantity * input.pricePerUnit
-      : undefined);
-  if (usdAmount === undefined) {
-    return NextResponse.json({ error: "Unable to determine usdAmount" }, { status: 400 });
-  }
+  const usdAmount = input.quantity * input.pricePerUnit;
 
-  if (input.type === "WITHDRAW") {
-    const existingTx = await prisma.transaction.findMany({ where: { tokenId: input.tokenId } });
-    const { cashBucket } = computeCashBucketFigures(existingTx);
-    if (usdAmount > cashBucket) {
+  // A buy paid from portfolio cash can't spend more cash than there is —
+  // pick "Outside Rekt" if it was paid from somewhere else, or deposit first.
+  if (input.type === "BUY" && input.fundedBy === "CASH_BUCKET") {
+    const cash = await getPortfolioCash();
+    if (usdAmount > cash + 0.005) {
       return NextResponse.json(
-        { error: `Withdrawal of ${usdAmount} exceeds the current Cash Bucket (${cashBucket.toFixed(2)})` },
+        {
+          error: `This buy is ${formatUsd(usdAmount)} but portfolio cash is only ${formatUsd(cash)}. Choose "Outside Rekt" if it was paid from elsewhere, or log a deposit first.`,
+        },
         { status: 400 }
       );
     }
@@ -77,9 +74,8 @@ export async function POST(request: Request) {
         tokenId: input.tokenId,
         type: input.type,
         fundedBy: input.type === "BUY" ? input.fundedBy : null,
-        quantity: input.type === "DEPOSIT" || input.type === "WITHDRAW" ? null : input.quantity,
-        pricePerUnit:
-          input.type === "DEPOSIT" || input.type === "WITHDRAW" ? null : input.pricePerUnit,
+        quantity: input.quantity,
+        pricePerUnit: input.pricePerUnit,
         usdAmount,
         sellRungIds: sellRungIds.length > 0 ? JSON.stringify(sellRungIds) : null,
         rebuyRungIds: rebuyRungIds.length > 0 ? JSON.stringify(rebuyRungIds) : null,

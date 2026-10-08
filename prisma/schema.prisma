@@ -32,8 +32,8 @@ enum FundSource {
 }
 
 enum PortfolioCashDirection {
-  IN // a token's cash bucket moved into the pool
-  OUT // pool cash was assigned into a token's cash bucket
+  IN // cash into the portfolio balance: a deposit or a positive reconcile adjustment
+  OUT // cash out of it: a withdrawal or a negative reconcile adjustment
 }
 
 enum AssetType {
@@ -120,6 +120,10 @@ model Token {
   // User-flagged favourite (starred on the Watchlist) — only affects display
   // and sorting, never ladder logic.
   isFavorite      Boolean   @default(false)
+  // Manual top-up to this token's rebuy budget (not cash). Rebuy budget =
+  // lifetime net sell proceeds + this; each rebuy rung deploys deployPct% of
+  // it, capped by the portfolio cash balance. Can be negative to trim.
+  rebuyTopUpUsd   Float     @default(0)
   lastPriceUpdate DateTime?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
@@ -157,9 +161,9 @@ model SellRung {
 }
 
 // Rebuy ladder rung. pct is the % drop from recentHigh that triggers this
-// rung. deployPct is the % of Cash Bucket Contributions (gross lifetime
-// inflow, §4) to deploy when this rung triggers — capped at the current
-// net Cash Bucket balance at execution time (§3).
+// rung. deployPct is the % of the token's rebuy budget (lifetime net sell
+// proceeds + Token.rebuyTopUpUsd) to deploy when this rung triggers —
+// capped at the portfolio cash balance at execution time (§3).
 model RebuyRung {
   id          String     @id @default(cuid())
   tokenId     String
@@ -180,6 +184,10 @@ model RebuyRung {
 model PortfolioSettings {
   id             Int      @id @default(1)
   targetValueUsd Float?
+  // Last "Reconcile cash" — when it happened and the real account balance
+  // that was entered, so drift since then can be shown.
+  lastReconciledAt      DateTime?
+  lastReconciledBalance Float?
   updatedAt      DateTime @updatedAt
 }
 
@@ -189,8 +197,8 @@ model PortfolioSettings {
 model PortfolioSnapshot {
   id            String   @id @default(cuid())
   capturedAt    DateTime @default(now())
-  totalValueUsd Float // Σ holdingsValueUsd + Σ cashBucket across all tokens, at capture time
-  cashBucketUsd Float
+  totalValueUsd Float // Σ holdingsValueUsd + portfolio cash, at capture time
+  cashBucketUsd Float // portfolio cash at capture time (column name predates the single-balance model)
 
   tokenSnapshots TokenSnapshot[]
 
@@ -213,13 +221,11 @@ model TokenSnapshot {
   @@index([snapshotId])
 }
 
-// Every BUY, SELL, DEPOSIT, and WITHDRAW is logged here. This is the single
-// source of truth for both the Cash Bucket and Cash Bucket Contributions
-// figures (§4) — those are always derived from this table, never stored
-// separately, so they can't drift. WITHDRAW is money actually leaving the
-// Cash Bucket (e.g. moved out to pay taxes) — distinct from the automatic
-// tax reserve, which just earmarks part of a SELL's proceeds without any
-// separate transaction.
+// Every BUY and SELL is logged here. Together with the portfolio cash ledger
+// (PortfolioCashTransaction) this is the source of truth for portfolio cash,
+// realised profit and the tax reserve (§4) — always derived, never stored, so
+// they can't drift. DEPOSIT/WITHDRAW are legacy values from the old per-token
+// Cash Bucket model; no rows use them any more and the API rejects new ones.
 model Transaction {
   id           String          @id @default(cuid())
   tokenId      String
@@ -238,19 +244,20 @@ model Transaction {
   @@index([tokenId])
 }
 
-// A portfolio-wide cash pool, separate from any token's own Cash Bucket —
-// for money from a fully-exited token you're not planning to redeploy into
-// that same token again. IN = a token's cash bucket moved into the pool
-// (paired with a WITHDRAW Transaction on that token); OUT = pool cash
-// assigned into a token's cash bucket (paired with a DEPOSIT Transaction
-// on that token). Balance is always derived — Σ IN − Σ OUT — never stored.
+// The portfolio cash ledger: money you put into (IN = deposit) or take out of
+// (OUT = withdrawal) Rekt's single cash balance. Portfolio cash is always
+// derived — Σ token net sell proceeds − Σ cash-funded buys + Σ IN − Σ OUT —
+// never stored. isAdjustment marks a "Reconcile cash" correction so it's
+// visible in the ledger. tokenId is legacy (old pool/assign rows); new rows
+// leave it null.
 model PortfolioCashTransaction {
-  id         String                 @id @default(cuid())
-  direction  PortfolioCashDirection
-  amount     Float
-  tokenId    String? // the token this moved from (IN) or into (OUT); null if never tied to one
-  token      Token?                 @relation(fields: [tokenId], references: [id], onDelete: SetNull)
-  note       String?
+  id           String                 @id @default(cuid())
+  direction    PortfolioCashDirection
+  amount       Float
+  tokenId      String?
+  token        Token?                 @relation(fields: [tokenId], references: [id], onDelete: SetNull)
+  isAdjustment Boolean                @default(false)
+  note         String?
   occurredAt DateTime               @default(now())
   createdAt  DateTime               @default(now())
 

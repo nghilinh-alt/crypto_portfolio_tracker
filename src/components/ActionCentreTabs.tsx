@@ -48,9 +48,12 @@ const TABS: Array<{ key: Tab; label: string }> = [
 export default function ActionCentreTabs({
   tokens,
   taxReserveRatePct,
+  portfolioCash,
 }: {
   tokens: ActionCentreToken[];
   taxReserveRatePct: number;
+  /** The single spendable cash balance every suggested buy is capped by. */
+  portfolioCash: number;
 }) {
   const [tab, setTab] = useState<Tab>("ALL");
 
@@ -59,6 +62,11 @@ export default function ActionCentreTabs({
     [tokens, tab]
   );
   const actionable = filtered.filter((t) => t.status === "SELL" || t.status === "BUY");
+  // Each buy is capped by portfolio cash on its own, but several can be live at
+  // once — flag when together they'd need more cash than there is.
+  const totalSuggestedBuys = actionable
+    .filter((t) => t.status === "BUY")
+    .reduce((sum, t) => sum + t.suggestedRebuyDeployUsd, 0);
   // Closest to triggering first — the whole point of a watchlist is to see
   // what needs attention soonest, not an arbitrary/alphabetical order.
   const watching = filtered
@@ -115,6 +123,18 @@ export default function ActionCentreTabs({
               <h2 className="text-2xl font-display font-medium text-foreground">Action required</h2>
             </div>
             <p className="mt-1 text-sm text-muted-foreground">Targets crossed at current prices.</p>
+            {totalSuggestedBuys > 0 && (
+              <p
+                className={`mt-1 text-sm ${
+                  totalSuggestedBuys > portfolioCash + 0.005 ? "text-destructive" : "text-muted-foreground"
+                }`}
+              >
+                Suggested buys total {formatUsd(totalSuggestedBuys)} of {formatUsd(portfolioCash)} portfolio cash
+                {totalSuggestedBuys > portfolioCash + 0.005
+                  ? " — more than you have, so you can't take them all."
+                  : "."}
+              </p>
+            )}
           </div>
           <div className="flex items-center justify-center rounded-full bg-secondary text-secondary-foreground text-xs font-mono px-2 py-0.5">
             {actionable.length}
@@ -202,7 +222,7 @@ export default function ActionCentreTabs({
                         {token.eligibleRebuyRungs.map((r) => (
                           <li key={r.id} className="flex justify-between items-center bg-background/50 rounded-lg p-3 border border-border/50">
                             <span className="text-muted-foreground">
-                              <strong className="text-foreground">-{r.pct}%</strong> ({formatPrice(r.triggerPrice)}) — deploy {r.deployPct}% of contribs
+                              <strong className="text-foreground">-{r.pct}%</strong> ({formatPrice(r.triggerPrice)}) — deploy {r.deployPct}% of rebuy budget
                             </span>
                             <span className="text-right font-mono text-foreground font-medium">
                               {formatUsd(r.rawDeployUsd)}
@@ -216,7 +236,7 @@ export default function ActionCentreTabs({
                         ))}
                       </ul>
                       <div className="mt-3 flex items-center justify-between border-t border-emerald-500/20 pt-3 text-sm font-medium text-foreground">
-                        <span className="text-muted-foreground text-xs uppercase tracking-wider font-mono">Suggested buy (capped at Cash Bucket)</span>
+                        <span className="text-muted-foreground text-xs uppercase tracking-wider font-mono">Suggested buy (capped at portfolio cash)</span>
                         <span className="text-right font-mono text-lg text-emerald-400">
                           {buyQty > 0 ? `≈ ${formatQty(buyQty)} ${token.symbol}` : formatUsd(token.suggestedRebuyDeployUsd)}
                           {buyQty > 0 && (
@@ -253,7 +273,7 @@ export default function ActionCentreTabs({
             </div>
             <p className="mt-1 text-sm text-muted-foreground">
               Within 10% of the next untriggered rung — shown below with what it needs to trigger and what
-              would happen. Forecasts use today&apos;s Cash Bucket and cost basis, so the real amount may
+              would happen. Forecasts use today&apos;s portfolio cash and cost basis, so the real amount may
               shift a little by the time a rung actually fires.
             </p>
           </div>
@@ -312,10 +332,10 @@ export default function ActionCentreTabs({
                     {w && (
                       <div className="pl-11 text-xs text-muted-foreground sm:text-right">
                         {w.kind === "sell"
-                          ? `→ sell ~${formatQty(w.forecastQty)} ${token.symbol} (${formatUsd(w.forecastProceedsUsd)}) — net ${formatUsd(w.forecastNetToCashBucketUsd)} to Cash Bucket after ~${formatPct(taxReserveRatePct, 0)} tax`
+                          ? `→ sell ~${formatQty(w.forecastQty)} ${token.symbol} (${formatUsd(w.forecastProceedsUsd)}) — net ${formatUsd(w.forecastNetToCashUsd)} to portfolio cash after ~${formatPct(taxReserveRatePct, 0)} tax`
                           : w.forecastDeployUsd > 0
                             ? `→ deploy ${formatUsd(w.forecastDeployUsd)} → +${formatQty(w.forecastQtyBought)} ${token.symbol}`
-                            : `→ would deploy $0 — Cash Bucket is empty right now`}
+                            : `→ would deploy $0 — portfolio cash is empty right now`}
                       </div>
                     )}
                   </div>

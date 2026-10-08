@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import StatusBadge from "./StatusBadge";
 import PortfolioProgress, { type SnapshotPoint } from "./PortfolioProgress";
-import PortfolioCashPool from "./PortfolioCashPool";
 import TargetGoalPanel from "./TargetGoalPanel";
 import PastResultsPanel from "./PastResultsPanel";
 import TokenAvatar from "./TokenAvatar";
@@ -30,9 +29,10 @@ export type DashboardToken = {
   dayChangePct: number | null;
   holdings: number;
   holdingsValueUsd: number;
-  cashBucket: number;
-  cashBucketContributions: number;
+  /** What this token's own trades added to / took from portfolio cash (used for tab totals). */
+  tokenCashFlow: number;
   taxReserved: number;
+  realizedProfit: number;
   gainFromBasePct: number;
   drawdownPct: number;
 };
@@ -73,12 +73,16 @@ function getTokenColor(symbol: string) {
 export default function DashboardTabs({
   tokens,
   snapshots,
-  poolBalance,
+  portfolioCash,
+  estAccountCash,
   targetValueUsd,
 }: {
   tokens: DashboardToken[];
   snapshots: SnapshotPoint[];
-  poolBalance: number;
+  /** The single spendable portfolio cash balance. */
+  portfolioCash: number;
+  /** Portfolio cash plus tax set aside — the figure to compare with the real account. */
+  estAccountCash: number;
   targetValueUsd: number | null;
 }) {
   const [tab, setTab] = useState<Tab>("CRYPTO");
@@ -118,13 +122,13 @@ export default function DashboardTabs({
   // `tokens`, not `filtered` — matching the same total-value formula used
   // to capture a PortfolioSnapshot (see lib/snapshot.ts).
   const wholePortfolioValue = useMemo(
-    () => tokens.reduce((sum, t) => sum + t.holdingsValueUsd + t.cashBucket, 0) + poolBalance,
-    [tokens, poolBalance]
+    () => tokens.reduce((sum, t) => sum + t.holdingsValueUsd, 0) + portfolioCash,
+    [tokens, portfolioCash]
   );
 
   // Past Results is tab-scoped: on ALL it uses the snapshot's stored
-  // totalValueUsd (holdings + Cash Bucket + pool); on a filtered tab there's
-  // no historical per-asset-type Cash Bucket figure, only per-token holdings
+  // totalValueUsd (holdings + portfolio cash); on a filtered tab there's
+  // no historical per-asset-type cash figure, only per-token holdings
   // value, so it sums each filtered token's own perToken snapshot value —
   // same limitation/approach as PortfolioProgress's "sum-tokens" mode.
   const periodPerformance = useMemo(() => {
@@ -163,23 +167,24 @@ export default function DashboardTabs({
       filtered.reduce(
         (acc, t) => {
           acc.holdingsValue += t.holdingsValueUsd;
-          acc.cashBucket += t.cashBucket;
-          acc.contributions += t.cashBucketContributions;
+          acc.tokenCashFlow += t.tokenCashFlow;
           acc.taxReserved += t.taxReserved;
+          acc.realizedProfit += t.realizedProfit;
           acc.valueAtBase += t.baseHoldings * t.basePrice;
           return acc;
         },
-        { holdingsValue: 0, cashBucket: 0, contributions: 0, taxReserved: 0, valueAtBase: 0 }
+        { holdingsValue: 0, tokenCashFlow: 0, taxReserved: 0, realizedProfit: 0, valueAtBase: 0 }
       ),
     [filtered]
   );
 
-  // The Portfolio Cash Pool is untethered to any single asset type, so it
-  // only counts toward the true whole-portfolio total (ALL) — folding it
-  // into the Crypto or Stocks totals would misattribute it to one type and
-  // double-count it if you compared the two type-scoped totals side by side.
-  const totalValue = totals.holdingsValue + totals.cashBucket + (tab === "ALL" ? poolBalance : 0);
-  const gainUsd = totalValue - totals.valueAtBase;
+  // Portfolio cash isn't tied to any asset type, so it only counts toward the
+  // whole-portfolio total (ALL); a Crypto/Stocks/Bullion total is holdings only.
+  const totalValue = totals.holdingsValue + (tab === "ALL" ? portfolioCash : 0);
+  // Gain is what the positions earned: current holdings plus the cash their
+  // own sells/buys moved, against the value at base. Deposits and withdrawals
+  // aren't gains, so they never enter this.
+  const gainUsd = totals.holdingsValue + totals.tokenCashFlow - totals.valueAtBase;
   const gainPct = totals.valueAtBase > 0 ? (gainUsd / totals.valueAtBase) * 100 : 0;
 
   const categoryCounts = new Map<string, number>();
@@ -252,22 +257,28 @@ export default function DashboardTabs({
           </div>
 
           <div className="flex flex-col gap-4">
+            {tab === "ALL" && (
+              <div className="flex-1 rounded-2xl bg-card border border-border p-5 flex flex-col justify-center">
+                <span className="text-muted-foreground font-mono text-xs uppercase tracking-wider mb-1">Portfolio Cash</span>
+                <div className="text-3xl font-display font-medium text-foreground tracking-tight">{formatUsd(portfolioCash)}</div>
+                <span className="text-xs text-muted-foreground mt-1">
+                  Spendable · {formatUsd(estAccountCash)} est. in account ·{" "}
+                  <Link href="/profit-tax" className="underline underline-offset-2 hover:text-foreground">
+                    Profit &amp; Tax
+                  </Link>
+                </span>
+              </div>
+            )}
             <div className="flex-1 rounded-2xl bg-card border border-border p-5 flex flex-col justify-center">
-              <span className="text-muted-foreground font-mono text-xs uppercase tracking-wider mb-1">Cash Bucket</span>
-              <div className="text-3xl font-display font-medium text-foreground tracking-tight">{formatUsd(totals.cashBucket)}</div>
-              <span className="text-xs text-muted-foreground mt-1">From {formatUsd(totals.contributions)} contributions</span>
+              <span className="text-muted-foreground font-mono text-xs uppercase tracking-wider mb-1">Realised Profits</span>
+              <div className="text-3xl font-display font-medium text-foreground tracking-tight">{formatUsd(totals.realizedProfit)}</div>
+              <span className="text-xs text-muted-foreground mt-1">Pre-tax gain from sells</span>
             </div>
             <div className="flex-1 rounded-2xl bg-card border border-border p-5 flex flex-col justify-center">
               <span className="text-muted-foreground font-mono text-xs uppercase tracking-wider mb-1">Tax Reserved</span>
               <div className="text-3xl font-display font-medium text-foreground tracking-tight">{formatUsd(totals.taxReserved)}</div>
               <span className="text-xs text-muted-foreground mt-1">Ready for withholding</span>
             </div>
-            {tab === "ALL" && (
-              <PortfolioCashPool
-                balance={poolBalance}
-                tokens={tokens.map((t) => ({ id: t.id, symbol: t.symbol }))}
-              />
-            )}
           </div>
         </div>
       )}
