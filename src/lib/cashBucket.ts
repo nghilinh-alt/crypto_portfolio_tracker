@@ -30,6 +30,12 @@ export type CashBucketFigures = {
   /** $ cost basis of current holdings, average-cost method — exposed so a
    * forecasted future sale can estimate its own tax withholding the same way. */
   costBasisTotal: number;
+  /**
+   * Lifetime profit locked in by sells, before tax: Σ (sale proceeds − average
+   * cost of the units sold). Losses on individual sells offset gains here,
+   * whereas the tax reserve only ever withholds on gains.
+   */
+  realizedProfit: number;
 };
 
 /**
@@ -48,6 +54,7 @@ export function computeCashBucketFigures(transactions: CashBucketTx[]): CashBuck
   let holdings = 0;
   let taxReserved = 0;
   let costBasisTotal = 0; // $ cost basis of current holdings, average-cost method
+  let realizedProfit = 0;
 
   for (const tx of sorted) {
     if (tx.type === "BUY") {
@@ -60,6 +67,7 @@ export function computeCashBucketFigures(transactions: CashBucketTx[]): CashBuck
       const avgCostPerUnit = holdings > 0 ? costBasisTotal / holdings : 0;
       const costOfSoldUnits = avgCostPerUnit * qty;
       const profit = tx.usdAmount - costOfSoldUnits;
+      realizedProfit += profit;
       const tax = Math.max(0, profit) * TAX_RESERVE_RATE;
       const netProceeds = tx.usdAmount - tax;
 
@@ -80,5 +88,5 @@ export function computeCashBucketFigures(transactions: CashBucketTx[]): CashBuck
     }
   }
 
-  return { cashBucket, cashBucketContributions, holdings, taxReserved, costBasisTotal };
+  return { cashBucket, cashBucketContributions, holdings, taxReserved, costBasisTotal, realizedProfit };
 }

@@ -17,6 +17,7 @@ export type CashBucketToken = {
   cashBucket: number;
   cashBucketContributions: number;
   taxReserved: number;
+  realizedProfit: number;
 };
 
 export type PoolTransaction = {
@@ -76,9 +77,10 @@ export default function CashBucketsTabs({
           acc.cashBucket += t.cashBucket;
           acc.contributions += t.cashBucketContributions;
           acc.taxReserved += t.taxReserved;
+          acc.realizedProfit += t.realizedProfit;
           return acc;
         },
-        { cashBucket: 0, contributions: 0, taxReserved: 0 }
+        { cashBucket: 0, contributions: 0, taxReserved: 0, realizedProfit: 0 }
       ),
     [filtered]
   );
@@ -104,16 +106,12 @@ export default function CashBucketsTabs({
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      {/* Row 1: where the money is. Row 2: what it earned and what's owed on it. */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <SummaryTile
           label={tab === "ALL" ? "Total Cash Bucket" : "Cash Bucket"}
           value={formatUsd(totals.cashBucket)}
           sub={`From ${formatUsd(totals.contributions)} contributions`}
-        />
-        <SummaryTile
-          label={tab === "ALL" ? "Total Tax Reserved" : "Tax Reserved"}
-          value={formatUsd(totals.taxReserved)}
-          sub="Withheld from realized profit"
         />
         {tab === "ALL" && (
           <>
@@ -121,7 +119,6 @@ export default function CashBucketsTabs({
               balance={poolBalance}
               tokens={tokens.map((t) => ({ id: t.id, symbol: t.symbol }))}
             />
-            <TaxPaymentPanel totalReserved={totals.taxReserved} totalPaid={totalTaxPaid} />
             <WithdrawAllButton
               totalCashBucket={totals.cashBucket}
               poolBalance={poolBalance}
@@ -129,6 +126,17 @@ export default function CashBucketsTabs({
             />
           </>
         )}
+        <SummaryTile
+          label="Realised Profits"
+          value={formatUsd(totals.realizedProfit)}
+          sub="Pre-tax gain from sells"
+        />
+        <SummaryTile
+          label={tab === "ALL" ? "Total Tax Reserved" : "Tax Reserved"}
+          value={formatUsd(totals.taxReserved)}
+          sub="Withheld from realized profit"
+        />
+        {tab === "ALL" && <TaxPaymentPanel totalReserved={totals.taxReserved} totalPaid={totalTaxPaid} />}
       </div>
 
       <div className="space-y-4">

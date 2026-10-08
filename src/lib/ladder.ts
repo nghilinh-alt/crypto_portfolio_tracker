@@ -78,6 +78,8 @@ export type TokenLadderView = {
   cashBucket: number;
   cashBucketContributions: number;
   taxReserved: number;
+  /** Lifetime pre-tax profit from sells (see CashBucketFigures.realizedProfit). */
+  realizedProfit: number;
   holdings: number;
   holdingsValueUsd: number;
   sellRungs: SellRungView[];
@@ -118,7 +120,7 @@ export function computeTokenLadderView(
   transactions: CashBucketTx[]
 ): TokenLadderView {
   const { currentPrice, recentHigh, basePrice, baseHoldings } = token;
-  const { cashBucket, cashBucketContributions, holdings, taxReserved, costBasisTotal } =
+  const { cashBucket, cashBucketContributions, holdings, taxReserved, costBasisTotal, realizedProfit } =
     computeCashBucketFigures(transactions);
   const avgCostPerUnit = holdings > 0 ? costBasisTotal / holdings : 0;
 
@@ -228,6 +230,7 @@ export function computeTokenLadderView(
     cashBucket,
     cashBucketContributions,
     taxReserved,
+    realizedProfit,
     holdings,
     holdingsValueUsd: holdings * currentPrice,
     sellRungs: sellRungViews,

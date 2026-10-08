@@ -34,6 +34,7 @@ export default async function CashBucketsPage() {
           cashBucket: t.ladder.cashBucket,
           cashBucketContributions: t.ladder.cashBucketContributions,
           taxReserved: t.ladder.taxReserved,
+          realizedProfit: t.ladder.realizedProfit,
         }))}
         poolBalance={poolBalance}
         poolTransactions={poolTransactions.map((tx) => ({
