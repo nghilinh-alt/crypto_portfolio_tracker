@@ -2,7 +2,7 @@ import Link from "next/link";
 import { getAllTokensWithLadder } from "@/lib/data";
 import { prisma } from "@/lib/prisma";
 import LogTransactionForm, { type TokenOption } from "@/components/LogTransactionForm";
-import DeleteButton from "@/components/DeleteButton";
+import TransactionActions from "@/components/TransactionActions";
 import { formatUsd, formatPrice, formatQty, formatDate } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -99,12 +99,14 @@ export default async function TransactionsPage({
                   <th className="px-6 py-3 text-right">Price/Unit</th>
                   <th className="px-6 py-3 text-right">USD</th>
                   <th className="px-6 py-3">Note</th>
-                  <th className="px-6 py-3" />
+                  <th className="sticky right-0 z-10 bg-card p-0">
+                    <div className="bg-muted/30 px-6 py-3 text-right">Actions</div>
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/50">
                 {recentTransactions.map((tx) => (
-                  <tr key={tx.id} className="hover:bg-muted/40 transition-colors">
+                  <tr key={tx.id} className="group hover:bg-muted/40 transition-colors">
                     <td className="whitespace-nowrap px-6 py-4 text-muted-foreground font-mono text-xs">
                       {formatDate(tx.occurredAt)}
                     </td>
@@ -129,11 +131,22 @@ export default async function TransactionsPage({
                       {formatUsd(tx.usdAmount)}
                     </td>
                     <td className="max-w-[200px] truncate px-6 py-4 text-muted-foreground">{tx.note ?? "—"}</td>
-                    <td className="px-6 py-4 text-right">
-                      <DeleteButton
-                        url={`/api/transactions/${tx.id}`}
-                        confirmText="Delete this transaction? Any rung it triggered will stay triggered."
-                      />
+                    <td className="sticky right-0 z-10 bg-card p-0 shadow-[-10px_0_10px_-10px_rgba(0,0,0,0.35)]">
+                      <div className="px-6 py-4 transition-colors group-hover:bg-muted/40">
+                        <TransactionActions
+                          tx={{
+                            id: tx.id,
+                            symbol: tx.token.symbol,
+                            type: tx.type,
+                            fundedBy: tx.fundedBy,
+                            quantity: tx.quantity,
+                            pricePerUnit: tx.pricePerUnit,
+                            usdAmount: tx.usdAmount,
+                            note: tx.note,
+                            occurredAt: tx.occurredAt.toISOString(),
+                          }}
+                        />
+                      </div>
                     </td>
                   </tr>
                 ))}

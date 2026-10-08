@@ -34,6 +34,7 @@ export default function DeleteButton({
       disabled={busy}
       className={className ?? "text-xs font-medium text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50"}
       aria-label={label}
+      title={label}
     >
       {busy ? "..." : (
         label === "Delete" ? (

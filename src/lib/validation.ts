@@ -147,6 +147,18 @@ export const createTransactionSchema = z
 
 export type CreateTransactionInput = z.infer<typeof createTransactionSchema>;
 
+// Which fields are accepted depends on the existing transaction's type — the
+// route enforces that (BUY/SELL take quantity/price, DEPOSIT/WITHDRAW take
+// usdAmount, only BUY has a funding source). Type and token never change.
+export const updateTransactionSchema = z.object({
+  fundedBy: z.enum(["CASH_BUCKET", "EXTERNAL"]).optional(),
+  quantity: z.number().positive().optional(),
+  pricePerUnit: z.number().positive().optional(),
+  usdAmount: z.number().positive().optional(),
+  note: z.string().trim().max(500).optional().nullable(),
+  occurredAt: z.string().datetime().optional(),
+});
+
 export const createCategorySchema = z.object({
   name: z.string().trim().min(1).max(40),
   rungs: z
