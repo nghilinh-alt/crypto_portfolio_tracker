@@ -2,12 +2,13 @@
 
 A single-user tool for running a sell/rebuy ladder strategy across 7 tokens.
 The sell ladder and rebuy ladder each measure from their own fixed-vs-ratcheting
-anchor (see below), prices are checked once a week (no live feed), and the
-transaction log is the source of truth for the Cash Bucket balance, realized
+anchor (see below), prices are checked once a day (no live feed), and the
+transaction log is the source of truth for the portfolio cash balance, realized
 tax, and which rungs have fired. See the top of
-[`src/lib/ladder.ts`](src/lib/ladder.ts) and
-[`src/lib/cashBucket.ts`](src/lib/cashBucket.ts) for the implementation of
-the rules below.
+[`src/lib/ladder.ts`](src/lib/ladder.ts),
+[`src/lib/position.ts`](src/lib/position.ts) and
+[`src/lib/portfolioCash.ts`](src/lib/portfolioCash.ts) for the implementation
+of the rules below.
 
 ## Setup
 
@@ -76,10 +77,14 @@ not the fluctuating current holdings. That's what makes the cumulative sell
 order or partial fills. `baseHoldings` is editable per token if you add to
 a position and want future sell rungs sized against the new total.
 
-### Rebuy ladder: % drop below recentHigh, deploying % of Cash Bucket Contributions
+### Rebuy ladder: % drop below recentHigh, deploying % of the token's rebuy budget
 
 Same for every token — -15/-25/-35/-45% off `recentHigh`, deploying
-10/20/30/40% of Cash Bucket Contributions (`DEFAULT_REBUY_RUNGS`).
+10/20/30/40% of the token's **rebuy budget** (`DEFAULT_REBUY_RUNGS`). A rebuy
+budget is a sizing number, not cash: the token's lifetime net sell proceeds
+(after the tax reserve) plus a manual top-up you can set under Edit
+Configuration. The suggested buy is the eligible rungs' amounts added up and
+capped by portfolio cash (below).
 
 ### Rung trigger state
 
@@ -92,57 +97,44 @@ monotonically with `%`, a big move naturally makes every shallower rung
 "eligible" at the same time (the cumulative behavior in the spec) without
 extra bookkeeping.
 
-### Cash Bucket, Contributions, and the 25% tax reserve
+### Portfolio cash, realised profit, and the 25% tax reserve
 
-Three figures, all *derived* from the transaction log on every read
-(`computeCashBucketFigures` in `src/lib/cashBucket.ts`), never stored, so
-they can't drift:
+There is one cash balance for the whole portfolio. Every figure is *derived*
+from the transaction log on every read (`computePositionFigures` in
+`src/lib/position.ts`, `summarizePortfolioCash` in `src/lib/portfolioCash.ts`),
+never stored, so it can't drift:
 
-- **Cash Bucket** (net, spendable) = Σ after-tax sell proceeds + Σ deposits
-  − Σ cash-bucket-funded buys − Σ withdrawals
-- **Cash Bucket Contributions** (gross, lifetime) = Σ after-tax sell
-  proceeds + Σ deposits — the basis for rebuy deploy-%. Buys and withdrawals
-  never reduce it; only the tax carve-out does, since that money was never
-  really available to the strategy.
+- **Portfolio cash** (net, spendable) = Σ after-tax sell proceeds
+  − Σ buys paid from portfolio cash + Σ deposits − Σ withdrawals
+  (plus any reconcile adjustments). Buys marked "Outside Rekt" never touch it.
 - **Tax Reserved** = 25% of realized profit on every SELL, held back before
-  the remainder ever reaches the Cash Bucket. Profit is computed against a
+  the remainder ever reaches portfolio cash. Profit is computed against a
   running weighted-average cost basis rebuilt from the BUY history — this
   is purely for the tax calculation and has no bearing on sell-ladder
   trigger logic, which stays anchored to `basePrice`. The rate is
   `TAX_RESERVE_RATE` (env-configurable, default `0.25`).
+- **Realised Profits** = Σ (sale proceeds − average cost of the units sold),
+  before tax.
+- **Est. cash in account** = portfolio cash + Tax Owing (reserved − paid). The
+  tax set aside is still sitting in the real account, so this is the number to
+  compare with your bank or exchange balance.
 
-`WITHDRAW` is a separate transaction type for money actually leaving the
-Cash Bucket (e.g. moved to a real account to pay estimated taxes) — distinct
-from the automatic tax reserve, which just earmarks part of a sale's
-proceeds without any money actually moving. The transactions form defaults
-a WITHDRAW's amount to the token's current Tax Reserved figure as a
-convenience. The server rejects a withdrawal larger than the current Cash
-Bucket.
+Deposits and withdrawals are portfolio-level entries in the cash ledger
+(`PortfolioCashTransaction`, `/api/cash`), not per-token. A buy paid from
+portfolio cash is rejected if it's more than the cash available — pick
+"Outside Rekt" if it was paid from somewhere Rekt doesn't track.
 
-Rebuy rungs deploy a `%` of Contributions; the Action Centre and token page
-both show that raw per-rung amount and a total "suggested deploy" capped at
-the current net Cash Bucket, per the safeguard against over-deploying when
-several rungs trigger at once.
+The **Profit & Tax** screen shows all of the above plus a Cash Ledger with a
+running balance. If it ever disagrees with your real account, use **Reconcile
+cash**: enter what your account shows and Rekt records the difference as one
+flagged adjustment (and remembers when you last reconciled). Tax payments are
+logged separately ("Log a tax payment") and never count as withdrawals.
 
-### Moving cash out of a fully-exited token
-
-If you've sold all of a token and aren't planning to rebuy it, its leftover
-Cash Bucket has nowhere useful to go on its own (a token's rebuy ladder only
-deploys into that same token). Two ways to move it, both from the "Move
-this cash elsewhere" control under a token's Cash Bucket figure:
-
-- **Directly to another token** — logs a `WITHDRAW` on the source and a
-  `DEPOSIT` on the destination, atomically (`/api/tokens/[id]/transfer-cash`).
-  No new concept, just two paired transactions.
-- **To the Portfolio Cash Pool** — a portfolio-wide balance not tied to any
-  token (`PortfolioCashTransaction`, always derived as Σ IN − Σ OUT, shown
-  on the Dashboard). Money sits there until you explicitly assign it to a
-  token later ("Assign to a token" under the pool balance), which logs a
-  `DEPOSIT` on that token. Since the rebuy ladder is entirely token-scoped,
-  pool cash never auto-deploys anywhere — assigning it is always manual.
-
-Both paths cap the amount at the source's current balance server-side, same
-as every other cash-movement check in the app.
+Rebuy rungs deploy a `%` of the token's rebuy budget; the Action Centre and
+token page both show that raw per-rung amount and a total "suggested deploy"
+capped at portfolio cash. When several tokens are in the buy zone at once the
+Action Centre also shows whether their suggested buys together exceed the cash
+you have.
 
 ### Status (Dashboard / Action Centre)
 
