@@ -138,10 +138,32 @@ export function tokenCashFlow(p: PositionFigures): number {
 }
 
 /**
- * A token's rebuy budget — the amount each rebuy rung's Deploy % applies to.
- * Lifetime net sell proceeds plus the manual top-up. It is a sizing number,
- * not cash: the actual buy is capped by the single portfolio cash balance.
+ * A token's rebuy weight — how big a slice of portfolio cash its rebuy rungs
+ * get relative to every other token. Lifetime net sell proceeds plus the manual
+ * top-up, floored at 0. It is a relative weight, not dollars: see rebuyCashShare.
  */
-export function rebuyBudget(p: PositionFigures, rebuyTopUpUsd: number): number {
+export function rebuyWeight(p: PositionFigures, rebuyTopUpUsd: number): number {
   return Math.max(0, p.netSellProceeds + rebuyTopUpUsd);
+}
+
+/**
+ * Σ of every token's rebuy weight — the denominator of each token's share.
+ * Must be summed over ALL tokens (including ones with no transactions but a
+ * top-up), each already floored at 0.
+ */
+export function totalRebuyWeight(
+  items: { position: PositionFigures; rebuyTopUpUsd: number }[]
+): number {
+  return items.reduce((sum, i) => sum + rebuyWeight(i.position, i.rebuyTopUpUsd), 0);
+}
+
+/**
+ * This token's slice of portfolio cash for rebuying: weight / Σ weights × cash.
+ * The shares of all tokens add up to portfolio cash, so rebuys triggered at
+ * the same time can never need more than the cash there is. 0 when there's no
+ * cash (or it's negative), no weight, or nothing to divide by.
+ */
+export function rebuyCashShare(weight: number, totalWeight: number, portfolioCash: number): number {
+  if (!(weight > 0) || !(totalWeight > 0) || !(portfolioCash > 0)) return 0;
+  return (weight / totalWeight) * portfolioCash;
 }

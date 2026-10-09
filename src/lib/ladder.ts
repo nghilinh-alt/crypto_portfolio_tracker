@@ -1,7 +1,8 @@
 import type { RungStatus } from "@prisma/client";
 import {
   computePositionFigures,
-  rebuyBudget as computeRebuyBudget,
+  rebuyCashShare as computeRebuyCashShare,
+  rebuyWeight as computeRebuyWeight,
   tokenCashFlow,
   TAX_RESERVE_RATE,
   type PositionTx,
@@ -44,7 +45,7 @@ export type RebuyRungView = RebuyRungLike & {
   triggerPrice: number;
   /** Pending and currentPrice <= triggerPrice — ready to act on. */
   isEligible: boolean;
-  /** deployPct% of the token's rebuy budget — this rung's own share, uncapped. */
+  /** deployPct% of the token's share of portfolio cash — this rung's own amount, before the overall cash cap. */
   rawDeployUsd: number;
 };
 
@@ -69,7 +70,7 @@ export type NearestWatchTarget =
       pct: number;
       triggerPrice: number;
       distancePct: number;
-      /** Capped at today's portfolio cash. */
+      /** deployPct% of today's cash share, capped at today's portfolio cash. */
       forecastDeployUsd: number;
       forecastQtyBought: number;
     };
@@ -84,14 +85,18 @@ export type TokenLadderView = {
   taxReserved: number;
   /** Lifetime pre-tax profit from sells (see PositionFigures.realizedProfit). */
   realizedProfit: number;
-  /** Lifetime sale proceeds after the tax reserve. */
+  /** Lifetime sale proceeds after the tax reserve — the sells part of the rebuy weight. */
   netSellProceeds: number;
   /** What this token's own trades have added to / taken from portfolio cash. Used so per-asset-type totals can include proceeds without a per-token cash balance. */
   tokenCashFlow: number;
-  /** Manual top-up added to the rebuy budget (stored on the token). */
+  /** Manual top-up added to the rebuy weight (stored on the token). */
   rebuyTopUpUsd: number;
-  /** What each rebuy rung's Deploy % applies to: net sell proceeds + top-up. A sizing number, not cash. */
-  rebuyBudget: number;
+  /** This token's rebuy weight: net sell proceeds + top-up, floored at 0. Relative, not dollars to spend. */
+  rebuyWeightUsd: number;
+  /** This token's weight as a % of every token's total rebuy weight (0–100). */
+  rebuyWeightPct: number;
+  /** This token's slice of portfolio cash for rebuying — what each rung's Deploy % applies to. Shares of all tokens add up to portfolio cash. */
+  rebuyCashShare: number;
   holdings: number;
   holdingsValueUsd: number;
   sellRungs: SellRungView[];
@@ -136,13 +141,23 @@ export function computeTokenLadderView(
   sellRungs: SellRungLike[],
   rebuyRungs: RebuyRungLike[],
   transactions: PositionTx[],
-  /** The single spendable portfolio cash balance — the cap on any suggested buy. */
-  portfolioCash: number
+  rebuy: {
+    /** The single spendable portfolio cash balance — the cap on any suggested buy. */
+    portfolioCash: number;
+    /** Σ of every token's rebuy weight (see totalRebuyWeight) — splits portfolio cash between tokens. */
+    totalRebuyWeight: number;
+  }
 ): TokenLadderView {
   const { currentPrice, recentHigh, basePrice, baseHoldings, rebuyTopUpUsd } = token;
+  const { portfolioCash } = rebuy;
   const position = computePositionFigures(transactions);
   const { holdings, taxReserved, costBasisTotal, realizedProfit, netSellProceeds } = position;
-  const rebuyBudget = computeRebuyBudget(position, rebuyTopUpUsd);
+  const rebuyWeightUsd = computeRebuyWeight(position, rebuyTopUpUsd);
+  // The total can never be smaller than this token's own weight; if the caller's
+  // figure is stale or mismatched, don't let the token claim more than 100%.
+  const totalWeight = Math.max(rebuy.totalRebuyWeight, rebuyWeightUsd);
+  const rebuyWeightPct = totalWeight > 0 ? (rebuyWeightUsd / totalWeight) * 100 : 0;
+  const rebuyCashShare = computeRebuyCashShare(rebuyWeightUsd, totalWeight, portfolioCash);
   const avgCostPerUnit = holdings > 0 ? costBasisTotal / holdings : 0;
 
   const drawdownPct =
@@ -171,7 +186,7 @@ export function computeTokenLadderView(
       ...r,
       triggerPrice: px,
       isEligible: rebuyHasAnchor && r.status === "PENDING" && currentPrice <= px,
-      rawDeployUsd: (r.deployPct / 100) * rebuyBudget,
+      rawDeployUsd: (r.deployPct / 100) * rebuyCashShare,
     };
   });
 
@@ -228,7 +243,7 @@ export function computeTokenLadderView(
     const triggerPrice = rebuyTriggerPrice(recentHigh, nearestRebuy.pct);
     const distancePct = currentPrice > 0 ? ((currentPrice - triggerPrice) / currentPrice) * 100 : 0;
     if (!nearestWatch || distancePct < nearestWatch.distancePct) {
-      const rawDeployUsd = (nearestRebuy.deployPct / 100) * rebuyBudget;
+      const rawDeployUsd = (nearestRebuy.deployPct / 100) * rebuyCashShare;
       const forecastDeployUsd = Math.max(0, Math.min(rawDeployUsd, portfolioCash));
       nearestWatch = {
         kind: "rebuy",
@@ -253,7 +268,9 @@ export function computeTokenLadderView(
     netSellProceeds,
     tokenCashFlow: tokenCashFlow(position),
     rebuyTopUpUsd,
-    rebuyBudget,
+    rebuyWeightUsd,
+    rebuyWeightPct,
+    rebuyCashShare,
     holdings,
     holdingsValueUsd: holdings * currentPrice,
     sellRungs: sellRungViews,

@@ -1,7 +1,7 @@
 import { prisma } from "./prisma";
 import { computeTokenLadderView, type TokenLadderView } from "./ladder";
 import { computePositionFigures } from "./position";
-import { getPortfolioCash, summarizePortfolioCash } from "./portfolioCash";
+import { buildPortfolioCashContext, getPortfolioCashContext } from "./portfolioCash";
 
 const STATUS_PRIORITY: Record<TokenLadderView["status"], number> = {
   SELL: 0,
@@ -13,7 +13,7 @@ const STATUS_PRIORITY: Record<TokenLadderView["status"], number> = {
 export type TokenWithLadder = Awaited<ReturnType<typeof getTokenWithLadder>>;
 
 export async function getTokenWithLadder(id: string) {
-  const [token, portfolioCash] = await Promise.all([
+  const [token, context] = await Promise.all([
     prisma.token.findUnique({
       where: { id },
       include: {
@@ -23,7 +23,7 @@ export async function getTokenWithLadder(id: string) {
         transactions: { orderBy: { occurredAt: "desc" } },
       },
     }),
-    getPortfolioCash(),
+    getPortfolioCashContext(),
   ]);
   if (!token) return null;
 
@@ -32,7 +32,7 @@ export async function getTokenWithLadder(id: string) {
     token.sellRungs,
     token.rebuyRungs,
     token.transactions,
-    portfolioCash
+    { portfolioCash: context.cash.cash, totalRebuyWeight: context.totalRebuyWeight }
   );
 
   return { ...token, ladder };
@@ -40,8 +40,8 @@ export async function getTokenWithLadder(id: string) {
 
 /**
  * Every token with its ladder view, plus the single portfolio cash summary,
- * from one load. Portfolio cash is computed first because it caps every
- * token's suggested rebuy.
+ * from one load. Portfolio cash and the total rebuy weight are computed first:
+ * together they decide each token's share of cash, which sizes its rebuys.
  */
 export async function getPortfolioOverview() {
   const [tokens, ledgerRows] = await Promise.all([
@@ -57,8 +57,11 @@ export async function getPortfolioOverview() {
     prisma.portfolioCashTransaction.findMany({ select: { direction: true, amount: true } }),
   ]);
 
-  const cash = summarizePortfolioCash(
-    tokens.map((t) => computePositionFigures(t.transactions)),
+  const { cash, totalRebuyWeight } = buildPortfolioCashContext(
+    tokens.map((t) => ({
+      position: computePositionFigures(t.transactions),
+      rebuyTopUpUsd: t.rebuyTopUpUsd,
+    })),
     ledgerRows
   );
 
@@ -70,7 +73,7 @@ export async function getPortfolioOverview() {
         token.sellRungs,
         token.rebuyRungs,
         token.transactions,
-        cash.cash
+        { portfolioCash: cash.cash, totalRebuyWeight }
       ),
     }))
     .sort((a, b) => STATUS_PRIORITY[a.ladder.status] - STATUS_PRIORITY[b.ladder.status]);

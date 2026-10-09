@@ -43,7 +43,8 @@ export default async function ProfitTaxPage() {
           assetType: t.assetType,
           realizedProfit: t.ladder.realizedProfit,
           taxReserved: t.ladder.taxReserved,
-          rebuyBudget: t.ladder.rebuyBudget,
+          rebuyCashShare: t.ladder.rebuyCashShare,
+          rebuyWeightPct: t.ladder.rebuyWeightPct,
         }))}
         cash={overview.cash}
         taxOwing={overview.taxOwing}

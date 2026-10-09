@@ -34,6 +34,10 @@ export default function RungEditor({
   const pctLabel = kind === "sell" ? "Gain %" : "Drop %";
   const pctSign = kind === "sell" ? "+" : "-";
   const accentColor = kind === "sell" ? "text-destructive" : "text-emerald-500";
+  // Rebuys are sized from this token's slice of portfolio cash; if every rung
+  // fired, Deploy % over 100 in total would ask for more than that slice.
+  const deployTotal = rungs.reduce((sum, r) => sum + r.portionPct, 0);
+  const overAllocated = kind === "rebuy" && deployTotal > 100 + 1e-9;
 
   return (
     <div className="flex flex-col h-full">
@@ -64,6 +68,12 @@ export default function RungEditor({
           </tbody>
         </table>
       </div>
+      {overAllocated && (
+        <p className="mt-3 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-500">
+          Deploy % adds up to {deployTotal}% — more than this token&apos;s share of portfolio cash if every rung
+          fires. Keep the total at 100% or less.
+        </p>
+      )}
       <div className="mt-4 pt-4 border-t border-border/50">
         <AddRungForm
           tokenId={tokenId}

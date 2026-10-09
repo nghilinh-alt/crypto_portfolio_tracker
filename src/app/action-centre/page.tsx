@@ -18,6 +18,7 @@ export default async function ActionCentrePage() {
     gainFromBasePct: t.ladder.gainFromBasePct,
     drawdownPct: t.ladder.drawdownPct,
     suggestedRebuyDeployUsd: t.ladder.suggestedRebuyDeployUsd,
+    rebuyWeightPct: t.ladder.rebuyWeightPct,
     eligibleSellRungs: t.ladder.sellRungs
       .filter((r) => r.isEligible)
       .map((r) => ({

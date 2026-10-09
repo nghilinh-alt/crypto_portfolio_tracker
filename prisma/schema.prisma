@@ -120,9 +120,10 @@ model Token {
   // User-flagged favourite (starred on the Watchlist) — only affects display
   // and sorting, never ladder logic.
   isFavorite      Boolean   @default(false)
-  // Manual top-up to this token's rebuy budget (not cash). Rebuy budget =
-  // lifetime net sell proceeds + this; each rebuy rung deploys deployPct% of
-  // it, capped by the portfolio cash balance. Can be negative to trim.
+  // Manual top-up to this token's rebuy weight (not cash). Rebuy weight =
+  // lifetime net sell proceeds + this (floored at 0). Portfolio cash is split
+  // between tokens in proportion to their weights; each rebuy rung deploys
+  // deployPct% of that token's share. Can be negative to trim.
   rebuyTopUpUsd   Float     @default(0)
   lastPriceUpdate DateTime?
   createdAt       DateTime  @default(now())
@@ -161,8 +162,9 @@ model SellRung {
 }
 
 // Rebuy ladder rung. pct is the % drop from recentHigh that triggers this
-// rung. deployPct is the % of the token's rebuy budget (lifetime net sell
-// proceeds + Token.rebuyTopUpUsd) to deploy when this rung triggers —
+// rung. deployPct is the % of the token's share of portfolio cash (its rebuy
+// weight — lifetime net sell proceeds + Token.rebuyTopUpUsd — over every
+// token's total weight, times cash) to deploy when this rung triggers —
 // capped at the portfolio cash balance at execution time (§3).
 model RebuyRung {
   id          String     @id @default(cuid())

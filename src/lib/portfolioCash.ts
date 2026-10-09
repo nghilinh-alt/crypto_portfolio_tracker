@@ -2,6 +2,7 @@ import { prisma } from "./prisma";
 import {
   computePositionFigures,
   tokenCashFlow,
+  totalRebuyWeight,
   type PositionFigures,
   type PositionTx,
 } from "./position";
@@ -50,36 +51,71 @@ export function summarizePortfolioCash(
 }
 
 /**
- * Current portfolio cash straight from the database. `excludeTxId` leaves one
- * transaction out — used by guards to ask "how much cash is there without this
- * purchase counted?" when creating or editing it.
+ * What every token's rebuy sizing needs besides its own position: the cash
+ * summary and the total rebuy weight (Σ over ALL tokens) that each token's
+ * weight is divided by to get its share of that cash.
  */
-export async function getPortfolioCash(excludeTxId?: string): Promise<number> {
-  const [transactions, ledgerRows] = await Promise.all([
-    prisma.transaction.findMany({
+export type PortfolioCashContext = {
+  cash: PortfolioCashSummary;
+  totalRebuyWeight: number;
+};
+
+/** One token's position plus the top-up stored on the token — all the context needs from it. */
+export type RebuyWeightInput = { position: PositionFigures; rebuyTopUpUsd: number };
+
+export function buildPortfolioCashContext(
+  tokens: RebuyWeightInput[],
+  ledgerRows: LedgerAmount[]
+): PortfolioCashContext {
+  return {
+    cash: summarizePortfolioCash(
+      tokens.map((t) => t.position),
+      ledgerRows
+    ),
+    totalRebuyWeight: totalRebuyWeight(tokens),
+  };
+}
+
+/**
+ * Portfolio cash and the total rebuy weight straight from the database.
+ * `excludeTxId` leaves one transaction out — used by guards to ask "how much
+ * cash is there without this purchase counted?" when creating or editing it.
+ * Iterates tokens (not transaction groups) so a token that only has a rebuy
+ * top-up and no trades yet still counts towards the total weight.
+ */
+export async function getPortfolioCashContext(excludeTxId?: string): Promise<PortfolioCashContext> {
+  const [tokens, ledgerRows] = await Promise.all([
+    prisma.token.findMany({
       select: {
-        id: true,
-        tokenId: true,
-        type: true,
-        fundedBy: true,
-        quantity: true,
-        usdAmount: true,
-        occurredAt: true,
-        createdAt: true,
+        rebuyTopUpUsd: true,
+        transactions: {
+          select: {
+            id: true,
+            type: true,
+            fundedBy: true,
+            quantity: true,
+            usdAmount: true,
+            occurredAt: true,
+            createdAt: true,
+          },
+        },
       },
     }),
     prisma.portfolioCashTransaction.findMany({ select: { direction: true, amount: true } }),
   ]);
 
-  const byToken = new Map<string, PositionTx[]>();
-  for (const tx of transactions) {
-    if (tx.id === excludeTxId) continue;
-    const list = byToken.get(tx.tokenId) ?? [];
-    list.push(tx);
-    byToken.set(tx.tokenId, list);
-  }
-  const positions = [...byToken.values()].map((txs) => computePositionFigures(txs));
-  return summarizePortfolioCash(positions, ledgerRows).cash;
+  return buildPortfolioCashContext(
+    tokens.map((t) => ({
+      position: computePositionFigures(t.transactions.filter((tx) => tx.id !== excludeTxId)),
+      rebuyTopUpUsd: t.rebuyTopUpUsd,
+    })),
+    ledgerRows
+  );
+}
+
+/** Current portfolio cash straight from the database (see getPortfolioCashContext for `excludeTxId`). */
+export async function getPortfolioCash(excludeTxId?: string): Promise<number> {
+  return (await getPortfolioCashContext(excludeTxId)).cash.cash;
 }
 
 export type CashLedgerKind =

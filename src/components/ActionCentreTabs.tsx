@@ -19,6 +19,8 @@ export type ActionCentreToken = {
   gainFromBasePct: number;
   drawdownPct: number;
   suggestedRebuyDeployUsd: number;
+  /** This token's weight as a % of every token's rebuy weight — 0 means it gets no slice of portfolio cash. */
+  rebuyWeightPct: number;
   eligibleSellRungs: Array<{
     id: string;
     pct: number;
@@ -45,6 +47,13 @@ const TABS: Array<{ key: Tab; label: string }> = [
   { key: "BULLION", label: "Bullion" },
 ];
 
+/** Why a rebuy would deploy $0: no cash at all, or this token has no weight in how cash is split. */
+function zeroRebuyReason(rebuyWeightPct: number, portfolioCash: number): string {
+  if (!(portfolioCash > 0)) return "portfolio cash is empty right now";
+  if (!(rebuyWeightPct > 0)) return "this token has no rebuy weight (log a sell or set a Rebuy Weight Top-up)";
+  return "its rung Deploy % is 0";
+}
+
 export default function ActionCentreTabs({
   tokens,
   taxReserveRatePct,
@@ -62,10 +71,11 @@ export default function ActionCentreTabs({
     [tokens, tab]
   );
   const actionable = filtered.filter((t) => t.status === "SELL" || t.status === "BUY");
-  // Each buy is capped by portfolio cash on its own, but several can be live at
-  // once — flag when together they'd need more cash than there is.
+  // Each token's rebuys are sized from its own share of portfolio cash, so
+  // together they stay within it — this total is a check on that. A SELL-status
+  // token can also have eligible rebuy rungs, so count by rungs, not status.
   const totalSuggestedBuys = actionable
-    .filter((t) => t.status === "BUY")
+    .filter((t) => t.eligibleRebuyRungs.length > 0)
     .reduce((sum, t) => sum + t.suggestedRebuyDeployUsd, 0);
   // Closest to triggering first — the whole point of a watchlist is to see
   // what needs attention soonest, not an arbitrary/alphabetical order.
@@ -222,7 +232,7 @@ export default function ActionCentreTabs({
                         {token.eligibleRebuyRungs.map((r) => (
                           <li key={r.id} className="flex justify-between items-center bg-background/50 rounded-lg p-3 border border-border/50">
                             <span className="text-muted-foreground">
-                              <strong className="text-foreground">-{r.pct}%</strong> ({formatPrice(r.triggerPrice)}) — deploy {r.deployPct}% of rebuy budget
+                              <strong className="text-foreground">-{r.pct}%</strong> ({formatPrice(r.triggerPrice)}) — deploy {r.deployPct}% of its cash share
                             </span>
                             <span className="text-right font-mono text-foreground font-medium">
                               {formatUsd(r.rawDeployUsd)}
@@ -246,6 +256,11 @@ export default function ActionCentreTabs({
                           )}
                         </span>
                       </div>
+                      {token.suggestedRebuyDeployUsd <= 0 && (
+                        <p className="mt-2 text-right text-xs text-muted-foreground">
+                          Nothing to deploy — {zeroRebuyReason(token.rebuyWeightPct, portfolioCash)}.
+                        </p>
+                      )}
                       <div className="mt-4 flex justify-end">
                         <Link
                           href={`/transactions?tokenId=${token.id}&type=BUY`}
@@ -335,7 +350,7 @@ export default function ActionCentreTabs({
                           ? `→ sell ~${formatQty(w.forecastQty)} ${token.symbol} (${formatUsd(w.forecastProceedsUsd)}) — net ${formatUsd(w.forecastNetToCashUsd)} to portfolio cash after ~${formatPct(taxReserveRatePct, 0)} tax`
                           : w.forecastDeployUsd > 0
                             ? `→ deploy ${formatUsd(w.forecastDeployUsd)} → +${formatQty(w.forecastQtyBought)} ${token.symbol}`
-                            : `→ would deploy $0 — portfolio cash is empty right now`}
+                            : `→ would deploy $0 — ${zeroRebuyReason(token.rebuyWeightPct, portfolioCash)}`}
                       </div>
                     )}
                   </div>

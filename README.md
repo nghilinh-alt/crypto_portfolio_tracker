@@ -77,14 +77,22 @@ not the fluctuating current holdings. That's what makes the cumulative sell
 order or partial fills. `baseHoldings` is editable per token if you add to
 a position and want future sell rungs sized against the new total.
 
-### Rebuy ladder: % drop below recentHigh, deploying % of the token's rebuy budget
+### Rebuy ladder: % drop below recentHigh, deploying % of the token's share of portfolio cash
 
 Same for every token — -15/-25/-35/-45% off `recentHigh`, deploying
-10/20/30/40% of the token's **rebuy budget** (`DEFAULT_REBUY_RUNGS`). A rebuy
-budget is a sizing number, not cash: the token's lifetime net sell proceeds
-(after the tax reserve) plus a manual top-up you can set under Edit
-Configuration. The suggested buy is the eligible rungs' amounts added up and
-capped by portfolio cash (below).
+10/20/30/40% of the token's **rebuy share** (`DEFAULT_REBUY_RUNGS`).
+
+A token's rebuy share is its slice of the one portfolio cash balance. Each
+token has a **rebuy weight** — its lifetime net sell proceeds (after the tax
+reserve) plus a manual top-up you can set under Edit Configuration (floored at
+0). Its share is `weight ÷ Σ every token's weight × portfolio cash`, so all the
+shares add up to exactly the cash you have and rebuys triggered at the same
+time can never need more than that. Tokens with no weight (no sells, no
+top-up) get no share until you log a sell or set a top-up. The weight is only
+relative: raising one token's top-up shrinks every other token's share, and
+shares rescale as cash moves (a sell raises both cash and that token's weight;
+a cash-funded buy shrinks everyone's share proportionally). The suggested buy
+is the eligible rungs' amounts added up and capped by portfolio cash (below).
 
 ### Rung trigger state
 
@@ -130,11 +138,12 @@ cash**: enter what your account shows and Rekt records the difference as one
 flagged adjustment (and remembers when you last reconciled). Tax payments are
 logged separately ("Log a tax payment") and never count as withdrawals.
 
-Rebuy rungs deploy a `%` of the token's rebuy budget; the Action Centre and
+Rebuy rungs deploy a `%` of the token's rebuy share; the Action Centre and
 token page both show that raw per-rung amount and a total "suggested deploy"
 capped at portfolio cash. When several tokens are in the buy zone at once the
-Action Centre also shows whether their suggested buys together exceed the cash
-you have.
+Action Centre also shows their suggested buys against the cash you have —
+because each token only draws on its own share (and its rungs' Deploy %
+total 100% or less), they stay within it.
 
 ### Status (Dashboard / Action Centre)
 

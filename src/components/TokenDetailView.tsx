@@ -74,13 +74,17 @@ export default async function TokenDetailView({ id }: { id: string }) {
           subTone={ladder.drawdownPct > 0 ? "negative" : "neutral"}
         />
         <StatCard
-          label="Rebuy Budget"
-          value={formatUsd(ladder.rebuyBudget)}
-          sub={`${formatUsd(ladder.netSellProceeds)} from sells${
-            ladder.rebuyTopUpUsd !== 0
-              ? ` ${ladder.rebuyTopUpUsd > 0 ? "+" : "−"} ${formatUsd(Math.abs(ladder.rebuyTopUpUsd))} top-up`
-              : ""
-          }`}
+          label="Rebuy Share"
+          value={formatUsd(ladder.rebuyCashShare)}
+          sub={
+            ladder.rebuyWeightUsd > 0
+              ? `${formatPct(ladder.rebuyWeightPct)} of portfolio cash · weight ${formatUsd(ladder.netSellProceeds)} from sells${
+                  ladder.rebuyTopUpUsd !== 0
+                    ? ` ${ladder.rebuyTopUpUsd > 0 ? "+" : "−"} ${formatUsd(Math.abs(ladder.rebuyTopUpUsd))} top-up`
+                    : ""
+                }`
+              : "No rebuy weight — log a sell or set a Rebuy Weight Top-up"
+          }
         />
         <StatCard
           label="Base Holdings"
@@ -166,7 +170,7 @@ export default async function TokenDetailView({ id }: { id: string }) {
                 Rebuy Ladder
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                % drop below recent high, deploying % of this token&apos;s rebuy budget
+                % drop below recent high, deploying % of this token&apos;s share of portfolio cash
               </p>
             </div>
             <div className="p-6 flex-1">

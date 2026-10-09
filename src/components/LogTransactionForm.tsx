@@ -453,7 +453,7 @@ function TransactionFields({
         <RungCheckboxes
           title="Rebuy rungs this transaction satisfies"
           sign="-"
-          portionSuffix="of rebuy budget"
+          portionSuffix="of cash share"
           rungs={token.pendingRebuyRungs}
           selected={selectedRebuyRungs}
           onToggle={(id) => toggle(selectedRebuyRungs, id, setSelectedRebuyRungs)}

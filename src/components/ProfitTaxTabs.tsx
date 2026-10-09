@@ -6,7 +6,7 @@ import TokenAvatar from "./TokenAvatar";
 import TaxPaymentPanel from "./TaxPaymentPanel";
 import ReconcileCash from "./ReconcileCash";
 import CashLedger, { type CashLedgerDto } from "./CashLedger";
-import { formatUsd, formatDate } from "@/lib/format";
+import { formatUsd, formatDate, formatPct } from "@/lib/format";
 import { assetDetailHref } from "@/lib/assetRoute";
 
 export type ProfitTaxToken = {
@@ -16,7 +16,9 @@ export type ProfitTaxToken = {
   assetType: "CRYPTO" | "STOCK" | "BULLION";
   realizedProfit: number;
   taxReserved: number;
-  rebuyBudget: number;
+  /** This token's slice of portfolio cash for rebuying, and its weight as a % of all tokens'. */
+  rebuyCashShare: number;
+  rebuyWeightPct: number;
 };
 
 export type TaxPaymentRow = {
@@ -162,8 +164,11 @@ export default function ProfitTaxTabs({
               <span>Token</span>
               <span className="text-right">Realised Profit</span>
               <span className="text-right">Tax Reserved</span>
-              <span className="text-right" title="What rebuy Deploy % applies to: net sell proceeds plus any top-up">
-                Rebuy Budget
+              <span
+                className="text-right"
+                title="This token's share of portfolio cash for rebuys, split by rebuy weight (net sell proceeds plus any top-up). Each rung's Deploy % applies to this."
+              >
+                Rebuy Share
               </span>
             </div>
             <div className="divide-y divide-border/50">
@@ -185,7 +190,10 @@ export default function ProfitTaxTabs({
                     {formatUsd(t.realizedProfit)}
                   </div>
                   <div className="text-right font-mono text-sm text-muted-foreground">{formatUsd(t.taxReserved)}</div>
-                  <div className="text-right font-mono text-sm text-muted-foreground">{formatUsd(t.rebuyBudget)}</div>
+                  <div className="text-right font-mono text-sm text-muted-foreground">
+                    {formatUsd(t.rebuyCashShare)}
+                    <div className="text-[10px] text-muted-foreground/70">{formatPct(t.rebuyWeightPct)} weight</div>
+                  </div>
                 </Link>
               ))}
             </div>

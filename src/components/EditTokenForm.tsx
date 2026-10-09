@@ -34,7 +34,7 @@ export default function EditTokenForm({
   baseHoldings: number;
   targetBuyPrice: number | null;
   rebuyTopUpUsd: number;
-  /** Lifetime sale proceeds after the tax reserve — the sells part of the rebuy budget. */
+  /** Lifetime sale proceeds after the tax reserve — the sells part of the rebuy weight. */
   netSellProceeds: number;
 }) {
   const router = useRouter();
@@ -251,7 +251,7 @@ export default function EditTokenForm({
         </label>
         <label className="block space-y-1">
           <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
-            Rebuy Budget Top-up (USD)
+            Rebuy Weight Top-up (USD)
           </span>
           <input
             type="number"
@@ -261,9 +261,10 @@ export default function EditTokenForm({
             className="block w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
           />
           <span className="text-[10px] text-muted-foreground/70">
-            rebuy budget = $
-            {netSellProceeds.toLocaleString("en-US", { maximumFractionDigits: 2 })} from sells + this top-up. Each
-            rebuy rung deploys its Deploy % of the budget, capped by portfolio cash. Not cash itself.
+            rebuy weight = $
+            {netSellProceeds.toLocaleString("en-US", { maximumFractionDigits: 2 })} from sells + this top-up. It
+            isn&apos;t cash — portfolio cash is split between tokens in proportion to their weights, so raising
+            this one shrinks every other token&apos;s share (a negative value trims this token&apos;s).
           </span>
         </label>
       </div>
