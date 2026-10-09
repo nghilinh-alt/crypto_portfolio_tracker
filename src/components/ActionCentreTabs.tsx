@@ -64,7 +64,7 @@ export default function ActionCentreTabs({
   /** The single spendable cash balance every suggested buy is capped by. */
   portfolioCash: number;
 }) {
-  const [tab, setTab] = useState<Tab>("ALL");
+  const [tab, setTab] = useState<Tab>("CRYPTO");
 
   const filtered = useMemo(
     () => (tab === "ALL" ? tokens : tokens.filter((t) => t.assetType === tab)),

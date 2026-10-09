@@ -93,7 +93,7 @@ function StarIcon({ filled }: { filled: boolean }) {
 
 export default function WatchlistTable({ items }: { items: WatchlistItem[] }) {
   const router = useRouter();
-  const [tab, setTab] = useState<Tab>("ALL");
+  const [tab, setTab] = useState<Tab>("CRYPTO");
   const [sortKey, setSortKey] = useState<SortKey>("change");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   // Optimistic star state so the toggle (and a favourite-sorted order) updates

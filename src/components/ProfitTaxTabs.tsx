@@ -58,7 +58,7 @@ export default function ProfitTaxTabs({
   lastReconciledAt: string | null;
   lastReconciledBalance: number | null;
 }) {
-  const [tab, setTab] = useState<Tab>("ALL");
+  const [tab, setTab] = useState<Tab>("CRYPTO");
 
   const filtered = useMemo(
     () => (tab === "ALL" ? tokens : tokens.filter((t) => t.assetType === tab)),
